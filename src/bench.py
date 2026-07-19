@@ -11,7 +11,10 @@ import argparse, time
 from pathlib import Path
 import pandas as pd
 from .preprocess import load
-from .report import resume, distribution_rangs, remplissage, equite_par_groupe, export_assignment
+from .report import (resume, distribution_rangs, remplissage,
+                    equite_par_groupe, export_assignment,
+                    non_affectes, satisfaction_par_eleve)
+from . import feasibility
 from . import algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da, algo_aceei
 
 ALGOS = {a.NAME: a for a in (algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da, algo_aceei)}
@@ -39,6 +42,15 @@ def bench(data_dir: str, out_dir: str, only: str | None = None) -> None:
     out.mkdir(exist_ok=True, parents=True)
     print(f"Instance : {len(inst.students)} élèves, {len(inst.occurrences)} occ, {len(inst.blocs)} blocs")
 
+    # Analyse de faisabilité en amont (explicabilité).
+    feas = feasibility.resume(inst)
+    print("\nFaisabilité (avant tout algo) :")
+    for k, v in feas.items():
+        print(f"  {k}: {v}")
+    feasibility.par_eleve(inst).to_csv(out / "feas_par_eleve.csv", sep=";", index=False)
+    feasibility.par_occurrence(inst).to_csv(out / "feas_par_occurrence.csv", sep=";", index=False)
+    feasibility.impossibles(inst).to_csv(out / "feas_impossibles.csv", sep=";", index=False)
+
     algos = [only] if only else list(ALGOS)
     resumes, dists = [], {}
     for name in algos:
@@ -53,41 +65,62 @@ def bench(data_dir: str, out_dir: str, only: str | None = None) -> None:
         export_assignment(inst, a, out / f"assignment_{name}.csv")
         remplissage(inst, a).to_csv(out / f"remplissage_{name}.csv", sep=";", index=False)
         equite_par_groupe(inst, a).to_csv(out / f"equite_{name}.csv", sep=";", index=False)
+        non_affectes(inst, a).to_csv(out / f"non_affectes_{name}.csv", sep=";", index=False)
+        satisfaction_par_eleve(inst, a).to_csv(out / f"satisfaction_{name}.csv", sep=";", index=False)
 
     df = pd.DataFrame(resumes)
     df = df[["algo", "temps_s", "taux_affectation", "rang_moyen", "rang_median",
-             "part_1er_choix", "part_top3", "n_affectations"]]
+             "rang_q75", "rang_d9", "rang_max",
+             "part_1er_choix", "part_top3", "part_rang_gte_5",
+             "n_affectations"]]
     df.to_csv(out / "bench_summary.csv", sep=";", index=False)
-    _write_report(inst, df, Path("docs/resultats.md"), dists)
+    _write_report(inst, df, Path("docs/resultats.md"), dists, feas)
     print(f"\nBench terminé. Résultats dans {out}/ et docs/resultats.md")
 
 
-def _write_report(inst, df: pd.DataFrame, path: Path, dists: dict[str, pd.Series]) -> None:
+def _write_report(inst, df, path: Path, dists, feas: dict) -> None:
     lines = [
         "# Résultats comparatifs des algorithmes",
         "",
         f"Instance : **{len(inst.students)} élèves**, **{len(inst.occurrences)} occurrences**, "
-        f"**{len(inst.blocs)} blocs**, soit {len(inst.students)*len(inst.blocs)} paires (élève, bloc).",
+        f"**{len(inst.blocs)} blocs**.",
+        "",
+        "## Analyse de faisabilité (avant tout algorithme)",
+        "",
+        "Ces chiffres décrivent ce que la structure des contraintes autorise, indépendamment de"
+        " tout algorithme. Ils fournissent la borne supérieure du taux d'affectation.",
+        "",
+        f"- Paires (élève, bloc) totales : **{feas['n_paires_eleve_bloc']}**",
+        f"- Paires **structurellement impossibles** (aucune occurrence accessible) : "
+        f"**{feas['paires_sans_occurrence_accessible']}** — voir `out/feas_impossibles.csv`",
+        f"- Paires sans vœu classé : {feas['paires_sans_voeu_classe']}",
+        f"- Paires dont les vœux tombent hors des occurrences accessibles : "
+        f"{feas['paires_voeux_hors_atteinte']}",
+        f"- Occurrences tendues (demande > capacité) : "
+        f"**{feas['occurrences_tendues_gt_100pct']}** — voir `out/feas_par_occurrence.csv`",
         "",
         "## Tableau récapitulatif",
         "",
-        "| Algo | Temps (s) | Taux affect. | Rang moyen | 1er choix | Top-3 |",
-        "|---|---:|---:|---:|---:|---:|",
+        "| Algo | Temps (s) | Taux aff. | Rang moy | Méd. | Q75 | D9 | Max | 1er | Top-3 | ≥5 |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
     ]
     for _, r in df.iterrows():
-        lines.append(f"| **{r['algo']}** | {r['temps_s']:.1f} | "
-                     f"{_fmt_pct(r['taux_affectation'])} | {r['rang_moyen']:.2f} | "
-                     f"{_fmt_pct(r['part_1er_choix'])} | {_fmt_pct(r['part_top3'])} |")
+        lines.append(
+            f"| **{r['algo']}** | {r['temps_s']:.1f} | {_fmt_pct(r['taux_affectation'])} | "
+            f"{r['rang_moyen']:.2f} | {r['rang_median']:.0f} | {r['rang_q75']:.0f} | "
+            f"{r['rang_d9']:.0f} | {int(r['rang_max'])} | "
+            f"{_fmt_pct(r['part_1er_choix'])} | {_fmt_pct(r['part_top3'])} | "
+            f"{_fmt_pct(r['part_rang_gte_5'])} |")
     lines += ["",
-              "*Rang 1-indexé : `1` = premier choix, `2` = deuxième, etc. Rang moyen ici en 0-indexé (0 = 1er choix).*",
+              "*Rangs 1-indexés partout : `1` = premier choix. « Méd » = médiane, "
+              "« Q75 » = troisième quartile, « D9 » = neuvième décile, « ≥5 » = part "
+              "d'affectations avec rang ≥ 5 (élèves mal servis).*",
               "",
               "## Distribution des rangs obtenus",
               "",
-              "Nombre d'affectations à chaque rang (top 6). « ≥7 » regroupe les rangs éloignés.",
-              "",
               "| Algo | 1 | 2 | 3 | 4 | 5 | 6 | ≥7 | non affecté |",
               "|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
-    total_paires = len(inst.students) * len(inst.blocs)
+    total_paires = feas["n_paires_eleve_bloc"]
     for name in df["algo"]:
         d = dists[name]
         vals = [int(d.get(k, 0)) for k in range(1, 7)]
@@ -96,28 +129,19 @@ def _write_report(inst, df: pd.DataFrame, path: Path, dists: dict[str, pd.Series
         lines.append(f"| **{name}** | " + " | ".join(map(str, vals + [rest, na])) + " |")
 
     lines += ["",
-              "## Notes de lecture",
+              "## Fichiers produits (dossier `out/`)",
               "",
-              "- **flow / mip / hungarian** convergent vers le même optimum : ils minimisent la somme "
-              "des rangs sous les contraintes de capacité, avec un fallback « non-affecté » à coût "
-              "prohibitif. En pratique, ils affectent le maximum de paires possible tout en donnant "
-              "à ~58 % des élèves leur premier choix.",
-              "- **rsd** (Random Serial Dictator) est le baseline : 30 lignes de code, très rapide, "
-              "mais plus d'échecs (~8 %) car les derniers servis n'ont plus de place. Utile comme référence.",
-              "- **da** (Deferred Acceptance) offre la robustesse à la déclaration (l'élève n'a pas "
-              "intérêt à mentir) et gère naturellement la priorité anglophone via l'ordre des préférences "
-              "côté occurrence. Sur la métrique de rang moyen il est comparable à RSD.",
-              "- **aceei** (ici : `iterated_maximum_matching_adjusted` de fairpyx) cible l'équité : il "
-              "donne plus souvent le **premier** choix (63 %) au prix d'un taux d'affectation plus faible. "
-              "Voir `docs/notes.md` N16 sur l'absence d'A-CEEI natif dans fairpyx.",
+              "**Faisabilité** (une seule fois par instance) :",
+              "- `feas_par_eleve.csv` — pour chaque paire (élève, bloc) : nb accessibles, nb vœux atteignables.",
+              "- `feas_par_occurrence.csv` — demande théorique vs capacité, cours tendus en tête.",
+              "- `feas_impossibles.csv` — paires structurellement bloquées.",
               "",
-              "## Fichiers produits",
-              "",
-              "Pour chaque algo, dans `out/` :",
-              "",
-              "- `assignment_<algo>.csv` : affectations `eleveID;bloc;id_occ` (format §11.1).",
-              "- `remplissage_<algo>.csv` : occupation par occurrence.",
-              "- `equite_<algo>.csv` : rang moyen par (régime, langue).",
+              "**Par algo** :",
+              "- `assignment_<algo>.csv` — affectations (§11.1).",
+              "- `remplissage_<algo>.csv` — occupation par occurrence, alertes sous/dépassement.",
+              "- `equite_<algo>.csv` — rang moyen par (régime, langue).",
+              "- `non_affectes_<algo>.csv` — liste **nominative** avec cause.",
+              "- `satisfaction_<algo>.csv` — rangs par bloc, somme, pire bloc.",
               ""]
     path.write_text("\n".join(lines), encoding="utf-8")
 
