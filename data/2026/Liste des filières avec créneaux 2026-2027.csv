@@ -1,0 +1,15 @@
+﻿Idparcours;Code parcours;Créneau;Intitulé parcours;S1-P1 créneau 1;S1-P1 créneau 2;S1-P2 créneau 1;S1-P2 créneau 2;S2-P3 créneau 1;S2-P3 créneau 2;S2-P4 créneau 1;S2-P4 créneau 2
+6243;CYBER;A;Filière Cybersécurité (créneau A);Lu-am;Me-pm;Lu-am;Me-pm;Lu-pm;Ve-am;Lu-pm;Ve-am
+6198;GIN;A;Filière Grandes Infrastructures Numériques (créneau A);Lu-am;Me-pm;Lu-am;Me-pm;Lu-pm;Ve-am;Lu-pm;Ve-am
+6205;IGR;A;Filière 3D & Systèmes Interactifs (créneau A);Lu-am;Me-pm;Lu-am;Me-pm;Lu-pm;Ve-am;Lu-pm;Ve-am
+6250;MACS;A;Filière Modélisation aléatoire et Calcul scientifique (créneau A);Lu-am;Me-pm;Lu-am;Me-pm;Lu-pm;Ve-am;Lu-pm;Ve-am
+6194;SLR;A;Filière Systèmes logiciels répartis (créneau A);Lu-am;Me-pm;Lu-am;Me-pm;Lu-pm;Ve-am;Lu-pm;Ve-am
+6218;TELECOM;A;Filière Télécommunications : des données aux systèmes (créneau A);Lu-am;Me-pm;Lu-am;Me-pm;Lu-pm;Ve-am;Lu-pm;Ve-am
+6249;IMA;B;Filière Image (créneau B);Lu-pm;Ve-am;Lu-pm;Ve-am;Lu-am;Me-pm;Lu-am;Me-pm
+6169;MITRO;B;Filière Mathématique, Informatique théorique et Recherche opérationnelle (créneau B);Lu-pm;Ve-am;Lu-pm;Ve-am;Lu-am;Me-pm;Lu-am;Me-pm
+6211;MODS;B;Filière Marchés, Organisations, Données, Stratégies (créneau B);Lu-pm;Ve-am;Lu-pm;Ve-am;Lu-am;Me-pm;Lu-am;Me-pm
+6220;SE;B;Filière Systèmes embarqués (créneau B);Lu-pm;Ve-am;Lu-pm;Ve-am;Lu-am;Me-pm;Lu-am;Me-pm
+6183;ACCQ;C;Filière Algèbre appliquée : cryptographie, information quantique, codage (créneau C);Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm
+6202;DSAI;C;Filière Data Science & Artificial Intelligence (créneau C);Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm
+6207;RIO;C;Filière Réseaux mobiles et Internet des objets (créneau C);Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm
+6251;SPAI;C;Filière Signal Processing & Artificial Intelligence (créneau C);Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm;Ma-am;Ve-pm
