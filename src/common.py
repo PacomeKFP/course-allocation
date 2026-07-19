@@ -1,6 +1,7 @@
 """Helpers partagés par tous les algorithmes."""
 from __future__ import annotations
-from .model import Instance, Student, Occurrence, Assignment, BONUS_ANGLOPHONE
+from .model import Instance, Student, Occurrence, Assignment
+from .constantes import BONUS_ANGLOPHONE
 from .filters import occ_accessibles
 
 

@@ -15,7 +15,8 @@ Modélisation :
 from __future__ import annotations
 from fairpyx import Instance as FpxInstance, divide
 from fairpyx.algorithms import iterated_maximum_matching_adjusted
-from .model import Instance, Assignment, BONUS_ANGLOPHONE
+from .model import Instance, Assignment
+from .constantes import BONUS_ANGLOPHONE
 from .common import rang, empty_assignment
 from .filters import accessible
 

@@ -1,24 +1,14 @@
 """Modèle interne unifié — dataclasses simples, sans logique métier.
 
-Voir docs/cahier_des_charges.md §2 pour le vocabulaire.
+Voir docs/cahier_des_charges.md §2 pour le vocabulaire, et
+src/constantes.py pour la table des mappings et les créneaux.
 """
 from __future__ import annotations
 from dataclasses import dataclass, field
-
-CRENEAUX = ["Lu-am", "Lu-pm", "Ma-am", "Ma-pm", "Me-am", "Me-pm", "Ve-am", "Ve-pm"]
-CRENEAUX_UNIVERSELS = ["Ma-pm", "Me-am"]
-JOURS = ["Lundi", "Mardi", "Mercredi", "Vendredi"]
-
-# Créneaux occupés par chaque groupe de filière (§6.2 du cahier).
-CRENEAUX_GROUPES: dict[str, dict[int, list[str]]] = {
-    "A": {1: ["Lu-am", "Me-pm"], 2: ["Lu-am", "Me-pm"],
-          3: ["Lu-pm", "Ve-am"], 4: ["Lu-pm", "Ve-am"]},
-    "B": {1: ["Lu-pm", "Ve-am"], 2: ["Lu-pm", "Ve-am"],
-          3: ["Lu-am", "Me-pm"], 4: ["Lu-am", "Me-pm"]},
-    "C": {p: ["Ma-am", "Ve-pm"] for p in (1, 2, 3, 4)},
-}
-
-BONUS_ANGLOPHONE = 2  # rabais soustrait au coût quand anglophone reçoit un cours EN
+from .constantes import (
+    CRENEAUX, CRENEAUX_UNIVERSELS, JOURS, CRENEAUX_GROUPES,
+    JOUR_DU_CRENEAU, BONUS_ANGLOPHONE, FILIERE_TO_GROUPE, FILIERES_SANS_CRENEAU,
+)
 
 
 @dataclass
@@ -33,10 +23,17 @@ class Occurrence:
     cap_max: int
     cap_min: int = 0
     nb_deja_inscrits: int = 0
+    intitule: str = ""
 
     @property
     def cap_dispo(self) -> int:
         return max(0, self.cap_max - self.nb_deja_inscrits)
+
+    @property
+    def id_display(self) -> str:
+        """Code lisible avec créneau/période : ``APM_4TC01_TP@Me-am/P1``."""
+        c = self.creneau or "?"
+        return f"{self.id_ue}@{c}/P{self.periode}"
 
 
 @dataclass
@@ -45,8 +42,9 @@ class Student:
     langue: str                # "FR" ou "EN" (francophone = FR)
     regime: str                # "etudiant" | "apprenti" | "auditeur"
     groupes_filiere: list[str] # sous-ensemble de {"A","B","C"}
-    jours_bloques: list[str]   # sous-ensemble de JOURS (apprentis seulement)
     voeux_par_bloc: dict[str, list[str]]  # bloc -> liste ordonnée d'id_ue préférés
+    # Filières brutes (codes Synapse, avant traduction en groupe A/B/C).
+    filieres_brutes: list[str] = field(default_factory=list)
 
 
 @dataclass
