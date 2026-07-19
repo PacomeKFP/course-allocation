@@ -25,10 +25,10 @@ from . import algo_flow
 NAME = "equite"
 
 
-def solve(inst: Instance, max_passes: int = 15) -> Assignment:
+def solve(inst: Instance, max_passes: int = 15, seed: int = 0) -> Assignment:
     a = algo_flow.solve(inst)
     for i in range(max_passes):
-        if not _pass(inst, a, i):
+        if not _pass(inst, a, seed * 1000 + i):
             break
     return a
 
