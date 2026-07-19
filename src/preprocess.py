@@ -11,7 +11,7 @@ from __future__ import annotations
 from pathlib import Path
 import pandas as pd
 from .model import Instance, Occurrence, Student
-from .constantes import FILIERE_TO_GROUPE, FILIERES_SANS_CRENEAU
+from .constantes import FILIERE_TO_GROUPE
 
 JOUR2CODE = {"Lundi": "Lu", "Mardi": "Ma", "Mercredi": "Me", "Vendredi": "Ve"}
 HEURE2CODE = {"8h30-11h45": "am", "13h30-16h45": "pm"}

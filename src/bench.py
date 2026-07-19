@@ -30,12 +30,8 @@ def run(inst, algo_name: str) -> tuple[dict, dict, float]:
     return a, resume(inst, a), dt
 
 
-def _fmt_pct(x: float) -> str:
+def _pct(x: float) -> str:
     return f"{x*100:.1f}%"
-
-
-def _fmt_num(x: float) -> str:
-    return f"{x:.2f}" if isinstance(x, float) else str(x)
 
 
 def bench(data_dir: str, out_dir: str, only: str | None = None) -> None:
@@ -62,8 +58,8 @@ def bench(data_dir: str, out_dir: str, only: str | None = None) -> None:
         r["temps_s"] = dt
         resumes.append(r)
         dists[name] = distribution_rangs(inst, a)
-        print(f"  temps: {dt:.1f}s  aff: {_fmt_pct(r['taux_affectation'])}  "
-              f"rang_moyen: {r['rang_moyen']:.2f}  1er choix: {_fmt_pct(r['part_1er_choix'])}")
+        print(f"  temps: {dt:.1f}s  aff: {_pct(r['taux_affectation'])}  "
+              f"rang_moyen: {r['rang_moyen']:.2f}  1er choix: {_pct(r['part_1er_choix'])}")
         export_assignment(inst, a, out / f"assignment_{name}.csv")
         remplissage(inst, a).to_csv(out / f"remplissage_{name}.csv", sep=";", index=False)
         equite_par_groupe(inst, a).to_csv(out / f"equite_{name}.csv", sep=";", index=False)
@@ -108,11 +104,11 @@ def _write_report(inst, df, path: Path, dists, feas: dict) -> None:
     ]
     for _, r in df.iterrows():
         lines.append(
-            f"| **{r['algo']}** | {r['temps_s']:.1f} | {_fmt_pct(r['taux_affectation'])} | "
+            f"| **{r['algo']}** | {r['temps_s']:.1f} | {_pct(r['taux_affectation'])} | "
             f"{r['rang_moyen']:.2f} | {r['rang_median']:.0f} | {r['rang_q75']:.0f} | "
             f"{r['rang_d9']:.0f} | {int(r['rang_max'])} | "
-            f"{_fmt_pct(r['part_1er_choix'])} | {_fmt_pct(r['part_top3'])} | "
-            f"{_fmt_pct(r['part_rang_gte_5'])} |")
+            f"{_pct(r['part_1er_choix'])} | {_pct(r['part_top3'])} | "
+            f"{_pct(r['part_rang_gte_5'])} |")
     lines += ["",
               "*Rangs 1-indexés partout : `1` = premier choix. « Méd » = médiane, "
               "« Q75 » = troisième quartile, « D9 » = neuvième décile, « ≥5 » = part "
