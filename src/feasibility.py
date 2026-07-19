@@ -72,6 +72,62 @@ def impossibles(inst: Instance) -> pd.DataFrame:
     return df[df["nb_accessibles"] == 0].copy()
 
 
+def creneaux_disponibles_par_periode(inst: Instance) -> pd.DataFrame:
+    """Pour chaque (période, créneau), nombre d'élèves libres théoriquement.
+
+    Utile pour décider où placer les occurrences dont le ``Créneau prédéfini``
+    est vide (cas des Humanités « S2P3 ou S2P4 »). Plus le nombre d'élèves
+    libres est grand, plus le créneau est attractif pour y placer un cours.
+    """
+    from .constantes import CRENEAUX
+    from .filters import creneaux_occupes, jour_bloque, JOUR_DU_CRENEAU
+    rows = []
+    for periode in (1, 2, 3, 4):
+        for c in CRENEAUX:
+            libres = 0
+            for s in inst.students:
+                if c in creneaux_occupes(s, periode):
+                    continue
+                if JOUR_DU_CRENEAU[c] in jour_bloque(s, periode):
+                    continue
+                libres += 1
+            rows.append({"periode": periode, "creneau": c,
+                         "n_libres": libres, "n_total": len(inst.students)})
+    return pd.DataFrame(rows).sort_values(["periode", "n_libres"], ascending=[True, False])
+
+
+def occurrences_sans_creneau(inst: Instance) -> pd.DataFrame:
+    """Occurrences dont le créneau n'est pas fixé, avec suggestion de placement.
+
+    Pour chaque occurrence sans créneau, on liste les créneaux triés par nombre
+    d'élèves libres à sa période (ceux qui l'ont ranked). Le premier est le
+    meilleur candidat.
+    """
+    from .constantes import CRENEAUX
+    from .filters import creneaux_occupes, jour_bloque, JOUR_DU_CRENEAU
+    dispo = creneaux_disponibles_par_periode(inst)
+    rows = []
+    for o in inst.occurrences:
+        if o.creneau:
+            continue
+        interess = [s for s in inst.students
+                    if o.id_ue in s.voeux_par_bloc.get(o.bloc, [])]
+        for c in CRENEAUX:
+            libres = 0
+            for s in interess:
+                if c in creneaux_occupes(s, o.periode or 3):
+                    continue
+                if JOUR_DU_CRENEAU[c] in jour_bloque(s, o.periode or 3):
+                    continue
+                libres += 1
+            rows.append({"id_occ": o.id_occ, "id_display": o.id_display,
+                         "bloc": o.bloc, "periode": o.periode,
+                         "cap": o.cap_max, "n_demandeurs": len(interess),
+                         "creneau_candidat": c, "n_demandeurs_libres": libres})
+    return pd.DataFrame(rows).sort_values(["id_occ", "n_demandeurs_libres"],
+                                          ascending=[True, False])
+
+
 def resume(inst: Instance) -> dict:
     """Synthèse en un dict pour affichage."""
     df = par_eleve(inst)

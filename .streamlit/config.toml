@@ -1,0 +1,6 @@
+# App forcée en thème clair (préférence utilisateur).
+[theme]
+base = "light"
+
+[browser]
+gatherUsageStats = false
