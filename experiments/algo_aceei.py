@@ -15,10 +15,13 @@ Modélisation :
 from __future__ import annotations
 from fairpyx import Instance as FpxInstance, divide
 from fairpyx.algorithms import iterated_maximum_matching_adjusted
-from .model import Instance, Assignment
-from .constantes import BONUS_ANGLOPHONE
-from .common import rang, empty_assignment
-from .filters import accessible
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.model import Instance, Assignment
+from src.constantes import BONUS_ANGLOPHONE
+from src.common import rang, empty_assignment
+from src.filters import accessible
 
 NAME = "aceei"
 UTIL_MAX = 100

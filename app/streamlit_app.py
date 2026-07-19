@@ -19,11 +19,11 @@ from src.report import (distribution_rangs, non_affectes, remplissage,
                         equite_par_groupe, resume, satisfaction_par_eleve)
 from src import feasibility
 from src import (algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da,
-                 algo_aceei, algo_equite)
+                 algo_equite)
 from src.model import Assignment
 
 ALGOS = {a.NAME: a for a in (algo_rsd, algo_flow, algo_mip, algo_hungarian,
-                              algo_da, algo_aceei, algo_equite)}
+                              algo_da, algo_equite)}
 
 st.set_page_config(page_title="Affectation cours 2A", layout="wide")
 st.title("Affectation des élèves aux cours électifs")
