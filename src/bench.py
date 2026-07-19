@@ -15,9 +15,11 @@ from .report import (resume, distribution_rangs, remplissage,
                     equite_par_groupe, export_assignment,
                     non_affectes, satisfaction_par_eleve)
 from . import feasibility
-from . import algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da, algo_aceei
+from . import (algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da,
+               algo_aceei, algo_equite)
 
-ALGOS = {a.NAME: a for a in (algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da, algo_aceei)}
+ALGOS = {a.NAME: a for a in (algo_rsd, algo_flow, algo_mip, algo_hungarian,
+                              algo_da, algo_aceei, algo_equite)}
 
 
 def run(inst, algo_name: str) -> tuple[dict, dict, float]:
