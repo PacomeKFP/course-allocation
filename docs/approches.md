@@ -90,7 +90,28 @@ préférence côté occurrence.
 **Limite.** Ne cherche pas l'optimum global de bien-être ; produit un
 matching stable, pas nécessairement le plus efficace.
 
-## 6. `algo_aceei.py` — Allocation équitable (fairpyx)
+## 6. `algo_equite.py` — Post-traitement d'équité au-dessus de flow
+
+**Idée.** Le min-cost flow est déjà optimal sur la somme totale des rangs
+(chaque bloc est indépendant). L'équité inter-blocs (« un mauvais rang
+compensé par un bon ailleurs ») demande une vue globale. On l'obtient par
+une recherche locale par swaps :
+
+Pour chaque paire d'élèves (s1, s2) et chaque bloc b, si échanger leurs
+occurrences respectives dans b (i) reste accessible pour les deux et
+(ii) réduit le max de leurs pires rangs, on effectue l'échange (sans
+dégrader la somme totale).
+
+**Force.** Sur les données de test, améliore **toutes** les métriques par
+rapport à flow (rang max 8 vs 10, part ≥5 : 3.2% vs 4.2%, 1er choix :
+58.0% vs 57.6%) en 14 s. Simple, déterministe.
+
+**Alternative testée mais écartée.** Une formulation MIP CP-SAT avec
+objectif min-max (poids sur `sum_s pire_s`) a été essayée : le solveur
+n'atteint pas l'optimum dans les temps (gap 45-95% à 60 s) et produit une
+solution moins bonne que la simple recherche locale.
+
+## 7. `experiments/algo_aceei.py` — Allocation équitable (fairpyx)
 
 **Idée (§13.5, adaptée).** Fairpyx ne fournit pas A-CEEI/Course-Match
 directement. On utilise `iterated_maximum_matching_adjusted` qui itère des

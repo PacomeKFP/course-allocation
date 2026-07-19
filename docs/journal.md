@@ -84,3 +84,56 @@ Détails et commentaires dans [`resultats.md`](resultats.md).
 2. Ajouter la contrainte de charge par période (`notes.md` N12) au MIP —
    c'est le seul algo où c'est facilement modélisable.
 3. Écrire un vrai A-CEEI si fairpyx en fournit un un jour (`notes.md` N16).
+
+---
+
+## 2026-07-19 — J1 · Deuxième vague (retours utilisateur dans `notes.md` racine)
+
+**Livrables ajoutés**
+
+- `src/constantes.py` : source unique de vérité pour le mapping
+  filière→groupe (14 codes), la table des créneaux par groupe, et le
+  calcul dynamique des jours d'entreprise des apprentis à chaque période
+  (note utilisateur N7 : les jours d'entreprise se déduisent de la filière).
+- `src/feasibility.py` : analyse préalable à tout algo — paires
+  structurellement impossibles, cours tendus, créneaux disponibles par
+  période, suggestions de placement pour les occurrences sans créneau.
+  Répond à la demande d'explicabilité (« pourquoi ce cas est bloqué »).
+- `src/algo_equite.py` : recherche locale par swaps au-dessus du min-cost
+  flow. Améliore l'équité inter-blocs (pire rang par élève) sans dégrader
+  la somme totale des rangs. **Domine flow sur toutes les métriques**
+  (rang max 8 vs 10, part ≥5 : 3.2% vs 4.2%, 1er choix : 58.0% vs 57.6%).
+- `experiments/` : A-CEEI (fairpyx) isolé hors du bench principal.
+- `.streamlit/config.toml` : thème clair forcé.
+- Rangs 1-indexés partout (note utilisateur), stats étendues (médiane,
+  quartiles, déciles, part rang ≥5), reporting nominatif des
+  non-affectés, satisfaction par élève (rangs par bloc + pire).
+- App Streamlit enrichie d'un onglet Faisabilité et Satisfaction par élève.
+
+**Résultats de bench actualisés (2026-07-19 · flow + equite)**
+
+| Algo | Aff | Rang moy | Med | Max | 1er | Top-3 | ≥5 |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| flow | 95.7% | 1.75 | 1 | 10 | 57.6% | 92.9% | 4.2% |
+| **equite** | **95.7%** | **1.67** | 1 | **8** | **58.0%** | **94.3%** | **3.2%** |
+
+Le taux d'affectation reste à 95.7% : les 4.3% restants sont
+structurellement impossibles (60 paires × jours d'entreprise apprentis)
+ou capacitivement bloqués. L'analyse de faisabilité expose ces cas
+avant l'algo, avec la cause précise.
+
+**Notes utilisateur (racine `notes.md`) — statut**
+
+1. Distinction des codes UE identiques → OK (`id_display` par occurrence).
+2. Rapport enrichi : liste nominative + remplissage détaillé → OK.
+3. Mitigation des sans-groupe (phrase interrompue) → à préciser par l'utilisateur.
+4. Codes UE 2026 comme référence → OK (préprocesseur canonique).
+5. Bloc SEHS format 2026 → OK.
+- N5 (créneaux Humanités vides) → analyse `occurrences_sans_creneau`.
+- N6 (mapping filière→groupe) → OK (`src/constantes.py`).
+- N7 (jours d'entreprise apprentis) → OK (calculés par période).
+- N9 (places déjà occupées) → géré via `cap_dispo`.
+- N10 (vœux vides = pas d'affectation) → OK.
+- N16 (A-CEEI à part) → OK (`experiments/`).
+- Rangs 1-indexés + stats étendues → OK.
+- Vérification amont → OK (`src/feasibility.py`).

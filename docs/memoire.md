@@ -65,9 +65,29 @@ python -m tools.make_ranking_par_bloc data
 streamlit run app/streamlit_app.py
 ```
 
-## État au 2026-07-19
+## État au 2026-07-19 (deuxième itération)
 
-- **Terminé** : préprocesseur, 6 algos, reporting, bench, docs, app Streamlit.
-- **À faire quand les vœux Synapse 2026 seront disponibles** : brancher le
-  format Synapse dans le bench (le préprocesseur est déjà prêt, il faut juste
-  fournir un `voeux_par_bloc.csv` similaire à `eleves_par_bloc.csv`).
+**Terminé**
+
+- Préprocesseur unifié + mapping filière→groupe centralisé (`src/constantes.py`).
+- Jours d'entreprise des apprentis calculés dynamiquement à partir de la filière.
+- 6 algos dans `src/` (rsd, flow, mip, hungarian, da, equite) + A-CEEI dans `experiments/`.
+- `algo_equite` : recherche locale par swaps qui améliore l'équité au-dessus de flow.
+- Reporting complet : rangs 1-indexés, médiane/quartiles/déciles, liste nominative
+  des non-affectés, satisfaction par élève, remplissage détaillé.
+- Analyse de faisabilité pré-algo (`src/feasibility.py`) : cours tendus, paires
+  structurellement impossibles, créneaux disponibles par période.
+- App Streamlit avec thème clair, onglets Récap/Faisabilité/Distribution/Non-affectés
+  /Remplissage/Satisfaction/Équité/Édition.
+
+**À faire quand les vœux Synapse 2026 seront disponibles**
+
+- Fournir `data/2026/voeux_par_bloc.csv` (mêmes colonnes que
+  `data/eleves_par_bloc.csv`). Le préprocesseur le charge automatiquement.
+- Vérifier avec `feasibility.occurrences_sans_creneau(inst)` où placer
+  les 7 Humanités sans créneau prédéfini.
+
+**Éventuelles évolutions**
+
+- Ajouter une contrainte de charge par période dans le MIP (§8.3 du cahier).
+- Rendre l'app Streamlit capable de re-lancer l'algo après édition.

@@ -1,7 +1,7 @@
 # Notes, remarques et questions ouvertes
 
 Chaque point est numéroté pour être référençable. Les statuts :
-- 🟡 **ouvert** — décision non tranchée, à lever avec la scolarité (Alexia).
+- 🟠 **ouvert** — décision non tranchée, à lever avec la scolarité (Alexia).
 - 🟢 **résolu** — décision prise (voir `journal.md` pour la date).
 - 🔴 **problème donnée** — incohérence à faire corriger côté source.
 
@@ -33,26 +33,28 @@ Le format 2026 distingue « Bloc Eco Num », « Bloc module d'ouverture SEHS »,
 « Humanités Contemporaines », etc. Cela affecte le nombre de blocs
 obligatoires. À trancher pour la version production.
 
-### N5 · Créneaux vides pour certaines Humanités 🟡
+### N5 · Créneaux vides pour certaines Humanités 🟢
 
 Format 2026 : plusieurs occurrences d'Humanités ont un `Créneau prédéfini` vide
-(« S2P3 ou S2P4 »). Décision provisoire : on **exclut** ces occurrences des
-affectations tant que leur horaire n'est pas fixé, en signalant l'exclusion.
+(« S2P3 ou S2P4 »). Décision : on **exclut** ces occurrences des affectations
+tant que leur horaire n'est pas fixé (le filtre `raison_rejet` renvoie
+« créneau non fixé »). **En complément**, `feasibility.occurrences_sans_creneau`
+propose des créneaux candidats classés par nombre de demandeurs libres.
 
-### N6 · Filières A/B/C simplifiées 🟡
+### N6 · Filières A/B/C simplifiées 🟢
 
-Le format simplifié utilise des lettres (`A|B|C`) directement, chaque étudiant
-n'ayant qu'une seule lettre. Le format réel utilise des codes (`DSAI`, `MACS`, …)
-et chaque étudiant en a deux. Comportement : dans le simplifié, on prend
-`filiere` comme groupe direct ; dans le 2026, on résout d'abord chaque code
-→ groupe A/B/C via `filiere.csv`, puis on prend l'union.
+Mapping centralisé dans `src/constantes.py` (`FILIERE_TO_GROUPE`). Le
+préprocesseur applique la traduction pour les deux formats. Codes filière
+sans mapping (TSIA, SD, ENTP, RECH) → aucune contrainte horaire imposée.
 
-### N7 · Jours bloqués des apprentis non fournis 🟡
+### N7 · Jours bloqués des apprentis 🟢
 
-Le cahier dit « les jours qui ne concernent pas la filière de l'apprenti » mais
-aucun fichier ne les explicite. Hypothèse par défaut : **aucun jour bloqué en
-plus** de la filière (le jeudi n'a pas cours, il n'y a donc rien à retirer).
-À raffiner si Alexia confirme un jour d'entreprise fixe (typiquement lundi).
+Résolu par déduction : un apprenti a UNE filière → 2 créneaux de cours →
+1-2 jours à l'école parmi {Lu, Ma, Me, Ve}. Les 2 autres jours (parmi ces 4)
+sont d'entreprise. Le jeudi est chômé. `jours_entreprise_apprenti(groupe, periode)`
+dans `src/constantes.py` fait le calcul. Cette contrainte fait tomber le taux
+d'affectation observé de 98.3% à 95.7% — 60 paires (élève, bloc) deviennent
+structurellement impossibles et sont exposées dans `feas_impossibles.csv`.
 
 ### N8 · Vœux : un seul classement global 🟢
 
@@ -108,9 +110,10 @@ d'appariement unique. Pour couvrir plusieurs blocs, on **applique DA bloc par
 bloc**, ce qui perd la vision globale (charge par période). Note à porter dans
 le rapport de bench.
 
-### N16 · A-CEEI (fairpyx) et notre modèle 🟡
+### N16 · A-CEEI (fairpyx) et notre modèle 🟢
 
-`fairpyx` attend des utilités par « panier de cours ». Passer des rangs à des
-utilités additives + définir les paniers admissibles va demander une couche de
-traduction. Attention : perf peut être limite pour 340 élèves × plusieurs
-blocs. À évaluer.
+`fairpyx` n'a pas d'A-CEEI direct : on utilise
+`iterated_maximum_matching_adjusted` comme proxy équitable. Isolé dans
+`experiments/` pour ne pas polluer le bench principal. Résultats
+respectables (64% de premier choix vs 58% pour flow) mais moins d'affectations
+totales (87.4% vs 95.7%). À réserver pour comparaison.
