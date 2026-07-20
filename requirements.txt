@@ -7,8 +7,11 @@ ortools>=9.10
 
 # App interactive + dépendances transitives qui peuvent manquer
 # en install --user selon la config
-streamlit>=1.30
+streamlit>=1.36
 altair>=5.0
 attrs>=22.0
 jinja2>=3.1
 idna>=3.0
+
+# Export Excel multi-onglets
+openpyxl>=3.1
