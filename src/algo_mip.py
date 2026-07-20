@@ -7,9 +7,9 @@ from __future__ import annotations
 from ortools.sat.python import cp_model
 from .model import Instance, Assignment
 from .common import couts_accessibles, empty_assignment
+from .constantes import BIG_M
 
 NAME = "mip"
-BIG_M = 10_000
 
 
 def solve(inst: Instance, time_limit_s: float = 30.0) -> Assignment:

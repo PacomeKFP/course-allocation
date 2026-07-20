@@ -13,9 +13,9 @@ from __future__ import annotations
 import networkx as nx
 from .model import Instance, Assignment
 from .common import couts_accessibles, empty_assignment
+from .constantes import BIG_M
 
 NAME = "flow"
-BIG_M = 10_000
 
 
 def solve(inst: Instance) -> Assignment:

@@ -12,10 +12,10 @@ from __future__ import annotations
 import pandas as pd
 from .model import Instance, Assignment
 from .filters import occ_accessibles
+from .constantes import CREDITS_PAR_BLOC
 
-CREDITS_PAR_BLOC = 2.5
-CIBLE_BLOCS = 6
-IDEAL_BLOCS = 8
+CIBLE_BLOCS = 6      # ≥ 15 crédits
+IDEAL_BLOCS = 8      # 20 crédits
 
 
 def charge_par_eleve(inst: Instance, a: Assignment) -> pd.DataFrame:

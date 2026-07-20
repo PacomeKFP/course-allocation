@@ -28,20 +28,12 @@ from __future__ import annotations
 from copy import deepcopy
 from ortools.sat.python import cp_model
 from .model import Instance, Assignment
-from .common import cout, empty_assignment
+from .common import cout, empty_assignment, group_by
 from .filters import accessible
-from .constantes import semestre_de_periode
-from .algo_mip import BIG_M
+from .constantes import BIG_M, semestre_de_periode
 
 NAME = "mip_full"
 LAMBDA_EQUILIBRE = 50
-
-
-def _group_by(items, key_fn):
-    groups: dict = {}
-    for it in items:
-        groups.setdefault(key_fn(it), []).append(it)
-    return groups
 
 
 def _split_modules(inst: Instance) -> Instance:
@@ -74,10 +66,10 @@ def solve(inst: Instance, time_limit_s: float = 60.0, workers: int = 8) -> Assig
             par_occ[o.id_occ].append(v)
             cost_terms.append(cout(s, o) * v)
 
-    par_instant = _group_by(inst.occurrences, lambda o: (o.periode, o.creneau))
-    par_ue = _group_by(inst.occurrences, lambda o: o.id_ue)
-    par_bloc = _group_by(inst.occurrences, lambda o: o.bloc)
-    par_sem = _group_by(inst.occurrences, lambda o: semestre_de_periode(o.periode))
+    par_instant = group_by(inst.occurrences, lambda o: (o.periode, o.creneau))
+    par_ue = group_by(inst.occurrences, lambda o: o.id_ue)
+    par_bloc = group_by(inst.occurrences, lambda o: o.bloc)
+    par_sem = group_by(inst.occurrences, lambda o: semestre_de_periode(o.periode))
 
     # (2) + (3) exclusions mutuelles : au plus 1 occ par instant ET par ECUE.
     for s in inst.students:

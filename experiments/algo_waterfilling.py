@@ -23,7 +23,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.model import Instance, Assignment
-from src.common import empty_assignment, rang
+from src.common import empty_assignment, rang, reste_capacite
 from src.filters import occ_accessibles
 
 NAME = "waterfilling"
@@ -67,7 +67,7 @@ def _init_pire_rang(inst: Instance) -> Assignment:
 def _promote_pass(inst: Instance, a: Assignment, order: list) -> bool:
     """Un tour de promotions. Renvoie True si au moins une promotion a eu lieu."""
     occ = {o.id_occ: o for o in inst.occurrences}
-    reste = _reste(inst, a)
+    reste = reste_capacite(inst, a)
     improved = False
     for s in order:
         for bloc in inst.blocs:
@@ -90,10 +90,3 @@ def _promote_pass(inst: Instance, a: Assignment, order: list) -> bool:
     return improved
 
 
-def _reste(inst: Instance, a: Assignment) -> dict[str, int]:
-    used = {o.id_occ: 0 for o in inst.occurrences}
-    for eid in a:
-        for oid in a[eid].values():
-            if oid:
-                used[oid] += 1
-    return {o.id_occ: o.cap_dispo - used[o.id_occ] for o in inst.occurrences}

@@ -36,3 +36,21 @@ def couts_accessibles(inst: Instance, s: Student, bloc: str) -> list[tuple[Occur
 
 def empty_assignment(inst: Instance) -> Assignment:
     return {s.id_eleve: {b: None for b in inst.blocs} for s in inst.students}
+
+
+def reste_capacite(inst: Instance, a: Assignment) -> dict[str, int]:
+    """Places restantes par occurrence après application de l'affectation ``a``."""
+    used = {o.id_occ: 0 for o in inst.occurrences}
+    for eid in a:
+        for oid in a[eid].values():
+            if oid:
+                used[oid] += 1
+    return {o.id_occ: o.cap_dispo - used[o.id_occ] for o in inst.occurrences}
+
+
+def group_by(items, key_fn) -> dict:
+    """Regroupe ``items`` en dict ``{clé: [items…]}`` selon ``key_fn``."""
+    groups: dict = {}
+    for it in items:
+        groups.setdefault(key_fn(it), []).append(it)
+    return groups

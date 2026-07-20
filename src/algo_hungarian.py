@@ -12,8 +12,9 @@ from .model import Instance, Assignment
 from .common import cout, empty_assignment
 from .filters import accessible
 
+from .constantes import BIG_M
+
 NAME = "hungarian"
-BIG_M = 10_000
 
 
 def solve(inst: Instance) -> Assignment:

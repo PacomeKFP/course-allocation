@@ -45,6 +45,15 @@ JOUR_DU_CRENEAU: dict[str, str] = {
 # Bonus retranché au coût quand un anglophone reçoit un cours en anglais.
 BONUS_ANGLOPHONE = 2
 
+# Pénalité prohibitive pour les slacks « non-affecté » et autres violations
+# souples encodées dans les objectifs MIP (algo_mip, algo_mip_full).
+BIG_M = 10_000
+
+# Charge institutionnelle : 1 bloc = 1 période occupée = 2,5 crédits.
+CREDITS_PAR_BLOC = 2.5
+CIBLE_FISE = 15.0        # ≥ 6 blocs pour un étudiant classique
+CIBLE_FISEA = 7.5        # ≥ 3 ECUE (× 2 semestres / 2) pour un apprenti
+
 
 def jours_ecole_apprenti(groupe: str, periode: int) -> set[str]:
     """Jours où l'apprenti a cours (une filière → 2 créneaux → 1 ou 2 jours)."""

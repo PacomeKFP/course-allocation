@@ -17,7 +17,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from src.model import Instance, Assignment
-from src.common import empty_assignment, rang
+from src.common import empty_assignment, rang, reste_capacite
 from src.filters import accessible, occ_accessibles
 
 NAME = "upgrade"
@@ -54,7 +54,7 @@ def _swap_pass(inst: Instance, a: Assignment, seed: int) -> bool:
     rng = random.Random(seed)
     occ = {o.id_occ: o for o in inst.occurrences}
     student = {s.id_eleve: s for s in inst.students}
-    reste = _reste(inst, a)
+    reste = reste_capacite(inst, a)
     improved = False
 
     for bloc in inst.blocs:
@@ -92,10 +92,3 @@ def _swap_pass(inst: Instance, a: Assignment, seed: int) -> bool:
     return improved
 
 
-def _reste(inst: Instance, a: Assignment) -> dict[str, int]:
-    used = {o.id_occ: 0 for o in inst.occurrences}
-    for eid in a:
-        for oid in a[eid].values():
-            if oid:
-                used[oid] += 1
-    return {o.id_occ: o.cap_dispo - used[o.id_occ] for o in inst.occurrences}

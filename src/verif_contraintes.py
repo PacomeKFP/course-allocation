@@ -22,19 +22,21 @@ from collections import Counter
 import pandas as pd
 from .model import Instance, Assignment
 from .filters import raison_rejet
-from .constantes import semestre_de_periode
+from .constantes import (semestre_de_periode, CREDITS_PAR_BLOC,
+                         CIBLE_FISE, CIBLE_FISEA)
 
-CREDITS_PAR_BLOC = 2.5
-CIBLE_FISE = 15.0
-CIBLE_FISEA = 7.5   # 3 ECUE × 2.5 crédits par semestre × 2 semestres / 2 = 7.5
+
+def _index_occ(inst: Instance) -> dict:
+    return {o.id_occ: o for o in inst.occurrences}
 
 
 def _assigns(inst: Instance, a: Assignment):
     """Génère les tuples (student, occ) affectés."""
+    idx = _index_occ(inst)
     for s in inst.students:
         for oid in a[s.id_eleve].values():
             if oid:
-                yield s, inst.occ_by_id(oid)
+                yield s, idx[oid]
 
 
 def accessibilite(inst: Instance, a: Assignment) -> pd.DataFrame:
@@ -47,22 +49,24 @@ def accessibilite(inst: Instance, a: Assignment) -> pd.DataFrame:
 
 def exclusion_instant(inst: Instance, a: Assignment) -> pd.DataFrame:
     """Élèves ayant plusieurs cours au même ``(période, créneau)``."""
+    idx = _index_occ(inst)
     rows = []
     for s in inst.students:
-        instants = [(inst.occ_by_id(oid).periode, inst.occ_by_id(oid).creneau)
+        instants = [(idx[oid].periode, idx[oid].creneau)
                     for oid in a[s.id_eleve].values() if oid]
-        for inst_key, n in Counter(instants).items():
+        for (p, c), n in Counter(instants).items():
             if n > 1:
-                rows.append({"eleve": s.id_eleve, "periode": inst_key[0],
-                             "creneau": inst_key[1], "n_cours": n})
+                rows.append({"eleve": s.id_eleve, "periode": p,
+                             "creneau": c, "n_cours": n})
     return pd.DataFrame(rows)
 
 
 def unicite_ecue(inst: Instance, a: Assignment) -> pd.DataFrame:
     """Élèves ayant deux occurrences du même ECUE."""
+    idx = _index_occ(inst)
     rows = []
     for s in inst.students:
-        ues = [inst.occ_by_id(oid).id_ue for oid in a[s.id_eleve].values() if oid]
+        ues = [idx[oid].id_ue for oid in a[s.id_eleve].values() if oid]
         for ue, n in Counter(ues).items():
             if n > 1:
                 rows.append({"eleve": s.id_eleve, "id_ue": ue, "n_fois": n})
@@ -84,11 +88,11 @@ def capacite(inst: Instance, a: Assignment) -> pd.DataFrame:
 
 def completude(inst: Instance, a: Assignment) -> pd.DataFrame:
     """Violations : FISE avec > 1 par bloc, FISEA avec > 3 ECUE par semestre."""
+    idx = _index_occ(inst)
     rows = []
     for s in inst.students:
-        per_bloc = Counter(inst.occ_by_id(oid).bloc
-                           for oid in a[s.id_eleve].values() if oid)
-        per_sem = Counter(semestre_de_periode(inst.occ_by_id(oid).periode)
+        per_bloc = Counter(idx[oid].bloc for oid in a[s.id_eleve].values() if oid)
+        per_sem = Counter(semestre_de_periode(idx[oid].periode)
                           for oid in a[s.id_eleve].values() if oid)
         for bloc, n in per_bloc.items():
             if n > 1:
