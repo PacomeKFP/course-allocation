@@ -1,5 +1,12 @@
 # Panorama pédagogique des algorithmes d'affectation
 
+> **Note (juillet 2026)** : Ce document reste un panorama académique de référence.
+> L'implémentation de production actuelle utilise uniquement le **MIP CP-SAT**
+> (voir §3 et [`architecture.md`](architecture.md)). Les autres approches sont
+> archivées dans [`old/`](../old/) pour référence future.
+
+
+
 > **Public** : étudiant, enseignant, encadrant — public académique non
 > spécialiste en optimisation combinatoire.
 >
