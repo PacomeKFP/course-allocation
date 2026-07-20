@@ -76,7 +76,7 @@ def load_campaign(path: str | Path) -> list[Voeu]:
 def build_campaign(students_path, campaign_path, ecue_path=None) -> Campaign:
     students = load_students(students_path)
     occurrences = load_ecue(ecue_path)
-    voeux = load_campaign(campaign_path)
+    voeux = [v for v in load_campaign(campaign_path) if v.id_student in students]
     id_campagne = voeux[0].id_campagne if voeux else ""
     return Campaign(id_campagne=id_campagne, students=students,
                     occurrences=occurrences, voeux=voeux)
