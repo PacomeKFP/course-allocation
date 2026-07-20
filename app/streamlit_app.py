@@ -1,127 +1,99 @@
-"""App Streamlit minimale pour explorer une instance et un résultat.
+"""App Streamlit — upload, résolution, exploration, export.
 
-Lancer :
-    streamlit run app/streamlit_app.py
-
-Strictement séparée de ``src/``. Le thème clair est forcé via
-``.streamlit/config.toml`` (préférence utilisateur).
+Onglets : Résumé · Non affectés · Remplissage · Stats par demande ·
+Compensation. Bloc tendu (n_enrolled > cap_max) mis en rouge.
 """
 from __future__ import annotations
-import sys
+import sys, tempfile
 from pathlib import Path
-
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-import streamlit as st
 import pandas as pd
-from src.preprocess import load
-from src.report import (distribution_rangs, non_affectes, remplissage,
-                        equite_par_groupe, resume, satisfaction_par_eleve)
-from src import feasibility
-from src import (algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da,
-                 algo_equite)
-from src.model import Assignment
+import streamlit as st
+from src.data import build_campaign
+from src.rules import Feasibility
+from src.solvers import PriorityChain, MipSolver
+from src.reporting import Report, export_synapse_import
 
-ALGOS = {a.NAME: a for a in (algo_rsd, algo_flow, algo_mip, algo_hungarian,
-                              algo_da, algo_equite)}
+st.set_page_config(page_title="Course allocation — Télécom Paris",
+                   page_icon="🎓", layout="wide")
+st.title("🎓 Affectation des cours électifs de 2A")
 
-st.set_page_config(page_title="Affectation cours 2A", layout="wide")
-st.title("Affectation des élèves aux cours électifs")
 
-# ---- Sidebar --------------------------------------------------------------
+def _save_upload(uploaded) -> str | None:
+    if uploaded is None:
+        return None
+    tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+    tmp.write(uploaded.read()); tmp.close()
+    return tmp.name
+
+
 with st.sidebar:
-    st.header("Instance")
-    data_dir = st.text_input("Dossier de données", "data")
-    if not Path(data_dir).exists():
-        st.error(f"Dossier introuvable : {data_dir}")
-        st.stop()
-    inst = load(data_dir)
-    st.write(f"{len(inst.students)} élèves · {len(inst.occurrences)} occ · {len(inst.blocs)} blocs")
-    algo_name = st.selectbox("Algorithme", list(ALGOS),
-                             index=list(ALGOS).index("equite"))
-    run_btn = st.button("Lancer l'algo", type="primary")
+    st.header("Entrées")
+    up_students = st.file_uploader("Étudiants (CSV Synapse)", type=["csv"])
+    up_campaign = st.file_uploader("Campagne de vœux (CSV Synapse)", type=["csv"])
+    up_ecue = st.file_uploader("Liste ECUE (optionnel)", type=["csv"])
+    cost_power = st.slider("Puissance du coût (rang^p)", 1, 4, 2)
+    time_limit = st.slider("Time limit MIP (s)", 5, 300, 60)
+    run = st.button("Lancer l'affectation", type="primary",
+                    disabled=not (up_students and up_campaign))
 
-# ---- Exécution ------------------------------------------------------------
-if run_btn or "assignment" not in st.session_state:
-    if run_btn:
-        with st.spinner(f"Résolution avec {algo_name}…"):
-            st.session_state.assignment = ALGOS[algo_name].solve(inst)
-            st.session_state.algo_name = algo_name
-    else:
-        st.info("Choisissez un algo et cliquez sur « Lancer l'algo » à gauche.")
-        st.stop()
+if not run:
+    st.info("Charge les deux CSV obligatoires (étudiants + campagne).")
+    st.stop()
 
-a: Assignment = st.session_state.assignment
+with st.spinner("Chargement…"):
+    campaign = build_campaign(
+        _save_upload(up_students), _save_upload(up_campaign), _save_upload(up_ecue))
+st.success(f"{len(campaign.students)} étudiants, {len(campaign.occurrences)} occurrences, "
+           f"{len(campaign.voeux)} vœux non-vides, {len(campaign.demandes())} demandes")
 
-# ---- Onglets --------------------------------------------------------------
-tabs = st.tabs(["Récap", "Faisabilité", "Distribution des rangs",
-                "Non-affectés", "Remplissage", "Satisfaction par élève",
-                "Équité par groupe", "Affectations (éditable)"])
+with st.spinner("Priorités…"):
+    pre = PriorityChain().apply(campaign)
+with st.spinner("Optimisation MIP…"):
+    assignment = MipSolver(cost_power=cost_power,
+                           time_limit_s=time_limit).solve(campaign, pre_assignment=pre)
+report = Report(campaign, assignment)
+stats = report.stats_global()
+
+c1, c2, c3, c4 = st.columns(4)
+c1.metric("Taux d'affectation", f"{stats['assignment_rate']*100:.1f}%")
+c2.metric("1er choix", f"{stats['first_choice_share']*100:.1f}%")
+c3.metric("Top-3", f"{stats['top3_share']*100:.1f}%")
+c4.metric("Affectations", stats['n_assigned'])
+
+tabs = st.tabs(["Résumé", "Non affectés", "Remplissage", "Par demande",
+                "Compensation", "Export"])
 
 with tabs[0]:
-    r = resume(inst, a)
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Taux d'affectation", f"{r['taux_affectation']*100:.1f}%")
-    c2.metric("1er choix", f"{r['part_1er_choix']*100:.1f}%")
-    c3.metric("Top-3", f"{r['part_top3']*100:.1f}%")
-    c4.metric("Rang moyen", f"{r['rang_moyen']:.2f}")
-    c5.metric("Rang max", f"{r['rang_max']}")
+    st.subheader("Distribution des rangs obtenus")
+    dist = stats["rank_distribution"]
+    st.bar_chart(pd.DataFrame({"count": dist}))
 
 with tabs[1]:
-    st.write("**Analyse préalable : ce que la structure des contraintes autorise.**")
-    fr = feasibility.resume(inst)
-    for k, v in fr.items():
-        st.write(f"- {k.replace('_', ' ')} : **{v}**")
-    st.subheader("Occurrences les plus tendues")
-    occ = feasibility.par_occurrence(inst).head(15)
-    st.dataframe(occ[["id_display", "bloc", "cap_dispo", "n_ranged",
-                      "n_premier_choix", "tension"]], use_container_width=True)
-    st.subheader("Paires structurellement impossibles")
-    st.dataframe(feasibility.impossibles(inst), use_container_width=True)
+    na = report.not_assigned()
+    st.write(f"**{len(na)}** paires (élève, demande) non affectées.")
+    st.dataframe(na, use_container_width=True, hide_index=True)
 
 with tabs[2]:
-    d = distribution_rangs(inst, a)
-    st.bar_chart(d)
-    st.caption("Rangs 1-indexés : 1 = premier choix.")
+    df = report.filling()
+    def highlight(row):
+        color = "background-color: #fecaca" if row["over_max"] else \
+                "background-color: #fef3c7" if row["under_min"] else ""
+        return [color] * len(row)
+    st.dataframe(df.style.apply(highlight, axis=1),
+                 use_container_width=True, hide_index=True)
 
 with tabs[3]:
-    na = non_affectes(inst, a)
-    st.write(f"**{len(na)} paires (élève, bloc)** attendues mais non affectées.")
-    st.dataframe(na, use_container_width=True)
+    st.dataframe(report.stats_per_demande(), use_container_width=True, hide_index=True)
 
 with tabs[4]:
-    rem = remplissage(inst, a)
-    st.dataframe(rem, use_container_width=True)
+    st.dataframe(report.stats_compensation().sort_values("worst_rank", ascending=False),
+                 use_container_width=True, hide_index=True)
 
 with tabs[5]:
-    sat = satisfaction_par_eleve(inst, a)
-    c1, c2, c3 = st.columns(3)
-    c1.metric("Pire rang moyen", f"{sat['pire_rang'].mean():.2f}")
-    c2.metric("Pire rang max", int(sat['pire_rang'].max()))
-    c3.metric("Somme rangs moyenne", f"{sat['somme_rangs'].mean():.1f}")
-    st.dataframe(sat, use_container_width=True)
-
-with tabs[6]:
-    st.dataframe(equite_par_groupe(inst, a), use_container_width=True)
-
-with tabs[7]:
-    st.caption("Éditez la colonne `id_occ` puis cliquez sur « Recalculer ». "
-               "Les modifications ne sont pas validées contre les contraintes.")
-    df = pd.DataFrame([
-        {"eleveID": s.id_eleve, "bloc": b, "id_occ": a[s.id_eleve][b] or ""}
-        for s in inst.students for b in inst.blocs
-    ])
-    edited = st.data_editor(df, use_container_width=True, hide_index=True,
-                            num_rows="fixed", key="editor")
-    if st.button("Recalculer les métriques sur l'édition"):
-        new: Assignment = {s.id_eleve: {b: None for b in inst.blocs}
-                           for s in inst.students}
-        for _, row in edited.iterrows():
-            oid = str(row["id_occ"]).strip() if row["id_occ"] else None
-            new[row["eleveID"]][row["bloc"]] = oid or None
-        st.session_state.assignment = new
-        st.rerun()
-    st.download_button("Télécharger l'affectation (CSV)",
-                       data=edited.to_csv(sep=";", index=False),
-                       file_name=f"assignment_{st.session_state.algo_name}.csv",
+    out = Path(tempfile.gettempdir()) / "synapse_import.csv"
+    export_synapse_import(campaign, assignment, out)
+    st.download_button("⬇️ Télécharger synapse_import.csv",
+                       data=out.read_bytes(), file_name="synapse_import.csv",
                        mime="text/csv")
