@@ -111,7 +111,29 @@ objectif min-max (poids sur `sum_s pire_s`) a été essayée : le solveur
 n'atteint pas l'optimum dans les temps (gap 45-95% à 60 s) et produit une
 solution moins bonne que la simple recherche locale.
 
-## 7. `experiments/algo_aceei.py` — Allocation équitable (fairpyx)
+## 7. `src/algo_mip_full.py` — MIP intégral, **recommandé pour la production**
+
+**Idée.** Encoder simultanément toutes les règles métier comme contraintes
+d'un modèle CP-SAT :
+- accessibilité (filière, langue, FISEA, jours d'entreprise) — via
+  pré-filtrage des variables ;
+- exclusion inter-occurrences au même instant `(période, créneau)` ;
+- unicité ECUE dans l'année ;
+- complétude par régime (FISE : 1 par bloc avec Module d'ouverture
+  scindé S1/S2 ; FISEA : ≤ 3 ECUE par semestre) ;
+- capacité, bonus anglophone, terme d'équilibrage des remplissages.
+
+Le solveur résout **en un seul appel** faisabilité + optimum.
+
+**Force.** Seul algo qui garantit le respect simultané de toutes les
+contraintes vérifiées par `verif_contraintes.py`. 7 s sur 340 élèves.
+Formulation extensible : ajouter une règle = ajouter une contrainte.
+
+**Coût.** Légère baisse du taux d'affectation (93 % vs 96 % pour flow)
+car il refuse les solutions non conformes. C'est le prix de la
+conformité.
+
+## 8. `experiments/algo_aceei.py` — Allocation équitable (fairpyx)
 
 **Idée (§13.5, adaptée).** Fairpyx ne fournit pas A-CEEI/Course-Match
 directement. On utilise `iterated_maximum_matching_adjusted` qui itère des

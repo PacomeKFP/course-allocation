@@ -352,17 +352,54 @@ signal [Cover & Thomas, 2006].
 
 ---
 
-## 10. Synthèse comparative
+## 10. MIP intégral — CP-SAT avec toutes les contraintes
 
-| Algo | Optimalité | Équité inter-blocs | Robustesse déclaration | Vitesse | Recommandation |
+### Principe
+Extension de l'approche MIP §3 : on encode **simultanément** toutes les
+règles métier comme contraintes CP-SAT. Le solveur trouve la meilleure
+affectation qui respecte tout (exclusion inter-blocs au même créneau,
+unicité ECUE, complétude par régime FISE/FISEA distinguée, capacité,
+bonus anglophone), avec un terme d'équilibrage des remplissages.
+
+### Motivation
+Les autres algorithmes (`flow`, `hungarian`, `mip` simple, `equite`)
+résolvent bloc par bloc et laissent silencieusement des collisions
+inter-blocs (jusqu'à ~380 élèves avec au moins deux cours au même
+moment sur nos données de test). Ce solveur est **le seul qui garantit
+la conformité complète** vérifiée par `src/verif_contraintes.py`.
+
+### Avantages
+- **Zero violation** des règles de l'enseignante.
+- Résout faisabilité + optimalité en un seul appel (branch-and-bound).
+- Extensible : nouvelle règle = une ligne de contrainte.
+
+### Inconvénients
+- Taux d'affectation légèrement plus faible (~93 % vs 96 %) car refuse
+  les solutions non conformes.
+- Temps ~7-30 s selon la taille et le time limit.
+
+### Références
+- OR-Tools CP-SAT : voir §3.
+- L'approche « tout en contraintes » s'appelle *combinatorial
+  optimization* ou *constraint programming for scheduling* :
+  [Rossi, F., van Beek, P., & Walsh, T. (Éds.) (2006).
+  *Handbook of Constraint Programming*. Elsevier.](
+  https://www.sciencedirect.com/book/9780444527264/handbook-of-constraint-programming)
+
+---
+
+## 11. Synthèse comparative
+
+| Algo | Optimalité | Contraintes complètes | Équité inter-blocs | Vitesse | Recommandation |
 |---|:---:|:---:|:---:|:---:|:---|
-| RSD | Pareto-eff. | Faible (aléa) | Oui | ⚡⚡⚡ | Référence, non prod. |
-| Flow / MIP / Hungarian | Optimum somme | Aucune | Non | ⚡⚡ | Bon utilitaire seul |
-| DA | Stabilité | Non | Oui | ⚡⚡ | Bien si priorités |
-| A-CEEI | Envy-free | Forte | Partielle | ⚡ | Wharton ; complexe |
-| **Equite** | Local | **Forte** | Non | ⚡⚡ | **Recommandé** |
-| Upgrade | Local | Forte | Non | ⚡⚡ | Expérimental |
-| Water Filling | Aucune | Moyenne | Non | ⚡⚡⚡ | Expérimental |
+| RSD | Pareto-eff. | Non | Faible | ⚡⚡⚡ | Référence |
+| Flow / MIP / Hungarian | Optimum somme | Non | Aucune | ⚡⚡ | Comparaison |
+| DA | Stabilité | Non | Non | ⚡⚡ | Bien si priorités |
+| A-CEEI | Envy-free | Non | Forte | ⚡ | Wharton |
+| Equite | Local | Non | Forte | ⚡⚡ | Meilleur rang moyen |
+| Upgrade | Local | Non | Forte | ⚡⚡ | Expérimental |
+| Water Filling | Aucune | Non | Moyenne | ⚡⚡⚡ | Expérimental |
+| **`mip_full`** | **Optimum** | **Oui** | Bonne | ⚡ | **Production** |
 
 ---
 

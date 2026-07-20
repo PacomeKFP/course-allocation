@@ -2,92 +2,98 @@
 
 ## Objectif
 
-Écrire un système d'affectation des élèves de 2A aux occurrences de cours électifs
-de Télécom Paris, avec plusieurs algorithmes comparables, exécutable une fois par
-an. Cf. [`cahier_des_charges.md`](cahier_des_charges.md).
+Écrire un système d'affectation des élèves de 2A aux occurrences de cours
+électifs de Télécom Paris, avec plusieurs algorithmes comparables,
+exécutable une fois par an. Cf. [`cahier_des_charges.md`](cahier_des_charges.md).
 
 ## État courant
 
 - Voir le [`journal.md`](journal.md) pour la chronologie.
-- Voir [`notes.md`](notes.md) pour les questions ouvertes et incertitudes à lever
-  avec la scolarité (Alexia).
+- Voir [`notes.md`](notes.md) pour les questions ouvertes.
+- Voir [`resultats.md`](resultats.md) pour le dernier bench.
+- Voir [`limites_structurelles.md`](limites_structurelles.md) pour le
+  rapport encadrement.
 
-## Décisions clés déjà prises
+## Décisions clés
 
-- **Deux formats de données** : `data/` (simplifié) et `data/2026/` (Synapse réel).
-  Le préprocesseur produit un modèle interne unifié (`src/model.py`).
-- **Vœux** : le classement global des UEs par élève est projeté sur chaque bloc.
-  Une seconde version avec un classement par bloc existe (`tools/make_ranking_par_bloc.py`).
-- **Priorité anglophone** : bonus dans la fonction de coût (paramétrable).
-- **Tous les blocs sont obligatoires pour tout le monde** (hypothèse par défaut,
-  à confirmer avec Alexia).
-- **Algos implémentés** : RSD, min-cost flow, MIP CP-SAT, Hungarian, Deferred
-  Acceptance, A-CEEI. Bench comparatif dans `src/bench.py`.
+- **Deux formats de données** : `data/` (simplifié, avec vœux réels) et
+  `data/2026/` (Synapse réel, sans vœux). Adaptateur commun dans
+  `src/preprocess.py`.
+- **Vœux** : classement global d'UEs par élève, projeté sur chaque bloc.
+  Un fichier `eleves_par_bloc.csv` peut fournir un classement par bloc,
+  détecté automatiquement.
+- **Priorité anglophone** : `BONUS_ANGLOPHONE` soustrait au coût quand un
+  anglophone reçoit un cours en anglais.
+- **Complétude par régime** :
+  - **FISE** (étudiant) — 1 occurrence par bloc obligatoire (10 blocs :
+    5 S1 + 5 S2, Module d'ouverture scindé S1/S2 dans `mip_full`).
+  - **FISEA** (apprenti) — ≤ 3 ECUE par semestre (règle scolarité).
+  - **Auditeur** — traité comme FISE flexible.
+- **`mip_full` est l'algo recommandé pour la production** : seul à
+  respecter toutes les contraintes (exclusion inter-blocs, unicité ECUE,
+  complétude par régime, capacité, langue). 7 s sur 340 élèves.
 
 ## Structure
 
-- `src/model.py` — dataclasses `Student`, `Occurrence`, `Instance`, `Assignment`.
-- `src/preprocess.py` — chargement d'une instance depuis un dossier de CSV.
-- `src/filters.py` — accessibilité (élève, occurrence) après créneaux/langue/FISEA.
-- `src/algo_*.py` — un fichier par approche, ≤ ~100 lignes chacun.
-- `src/report.py` — métriques + causes de non-affectation.
-- `src/bench.py` — lance tous les algos, produit `docs/resultats.md`.
-- `tools/make_ranking_par_bloc.py` — dérive `eleves_par_bloc.csv`.
-- `app/streamlit_app.py` — interface minimale.
+- `src/constantes.py` — source unique de vérité (mappings, créneaux).
+- `src/model.py` — dataclasses `Student`, `Occurrence`, `Instance`.
+- `src/preprocess.py` — chargement (2 formats supportés).
+- `src/filters.py` — accessibilité (créneau, langue, FISEA, jours entreprise).
+- `src/common.py` — helpers `rang(s, o)`, `cout(s, o)`.
+- `src/algo_{rsd,flow,mip,hungarian,da,equite,mip_full}.py` — 7 algos.
+- `src/feasibility.py` — analyse préalable.
+- `src/verif_contraintes.py` — vérification post-affectation exhaustive.
+- `src/verif_charge.py` — contrôle des crédits.
+- `src/report.py` — métriques + rapport.
+- `src/bench.py` — orchestrateur.
+- `tools/{analyse_structurelle, bench_multi, make_ranking_par_bloc}.py`.
+- `experiments/{algo_aceei, algo_upgrade, algo_waterfilling}.py` —
+  approches non retenues, gardées pour comparaison.
+- `app/streamlit_app.py` — interface interactive.
 
 ## Conventions
 
 - Français pour le texte, anglais pour les identifiants techniques standards.
 - Créneaux internes : `Lu-am | Lu-pm | Ma-am | Ma-pm | Me-am | Me-pm | Ve-am | Ve-pm`.
-- Périodes internes : entiers `1..4` (S1-P1 → 1, S1-P2 → 2, S2-P3 → 3, S2-P4 → 4).
+- Périodes internes : entiers `1..4`.
 - Langue interne : `FR | EN`.
 - Régime interne : `etudiant | apprenti | auditeur`.
+- **Rangs 1-indexés partout** (1 = premier choix).
+- Fichiers `src/*.py` < 200 lignes.
 
 ## Environnement
 
-- `conda env base`, Python 3.11.
-- Libs custom installées via `pip install --user` : `ortools`, `matching`, `fairpyx`, `idna`.
-- Accès GPU disponible via `ssh gpu.enst.fr` (pas nécessaire vu la taille ≈ 350 élèves).
+- Python 3.11+, dépendances dans `requirements.txt`.
+- Libs custom (via `pip install --user` sous Windows) : `ortools`,
+  `matching`, `fairpyx`, `idna`.
+- Accès GPU `ssh gpu.enst.fr` disponible (pas nécessaire ici).
 
 ## Commandes utiles
 
 ```bash
-# Bench complet (recrée out/ + docs/resultats.md)
-python -m src.bench --data data
-
-# Un seul algo
-python -m src.bench --data data --algo flow
-
-# Générer le classement par bloc dérivé
-python -m tools.make_ranking_par_bloc data
-
-# App
-streamlit run app/streamlit_app.py
+python -m src.bench --data data                     # bench complet
+python -m src.bench --data data --algo mip_full     # un seul algo
+python -m tools.bench_multi data --seeds 10         # multi-seed
+python -m tools.analyse_structurelle data/2026      # rapport structurel
+python -m src.verif_contraintes data                # audit contraintes
+python -m src.verif_charge data                     # audit crédits
+python -m tools.make_ranking_par_bloc data          # génère eleves_par_bloc.csv
+streamlit run app/streamlit_app.py                  # app
 ```
 
-## État au 2026-07-19 (deuxième itération)
-
-**Terminé**
-
-- Préprocesseur unifié + mapping filière→groupe centralisé (`src/constantes.py`).
-- Jours d'entreprise des apprentis calculés dynamiquement à partir de la filière.
-- 6 algos dans `src/` (rsd, flow, mip, hungarian, da, equite) + A-CEEI dans `experiments/`.
-- `algo_equite` : recherche locale par swaps qui améliore l'équité au-dessus de flow.
-- Reporting complet : rangs 1-indexés, médiane/quartiles/déciles, liste nominative
-  des non-affectés, satisfaction par élève, remplissage détaillé.
-- Analyse de faisabilité pré-algo (`src/feasibility.py`) : cours tendus, paires
-  structurellement impossibles, créneaux disponibles par période.
-- App Streamlit avec thème clair, onglets Récap/Faisabilité/Distribution/Non-affectés
-  /Remplissage/Satisfaction/Équité/Édition.
-
-**À faire quand les vœux Synapse 2026 seront disponibles**
+## Actions à faire quand les vœux Synapse 2026 seront disponibles
 
 - Fournir `data/2026/voeux_par_bloc.csv` (mêmes colonnes que
-  `data/eleves_par_bloc.csv`). Le préprocesseur le charge automatiquement.
+  `data/eleves_par_bloc.csv`). Le préprocesseur le charge auto.
 - Vérifier avec `feasibility.occurrences_sans_creneau(inst)` où placer
   les 7 Humanités sans créneau prédéfini.
+- Récupérer avec la scolarité le mapping filière apprentie → 3 blocs
+  obligatoires par semestre (CYBER, DSAI, RIO, SE — les 4 filières
+  apprenties confirmées).
 
-**Éventuelles évolutions**
+## Bug résolus notables
 
-- Ajouter une contrainte de charge par période dans le MIP (§8.3 du cahier).
-- Rendre l'app Streamlit capable de re-lancer l'algo après édition.
+- **algo_equite ancien** : la boucle de swaps opérait sur une liste
+  stale et créait des dépassements massifs de capacité (jusqu'à 192
+  élèves dans un cours à 60 places). Corrigé en re-lisant `a[e][bloc]`
+  à chaque itération. Impact : 1er choix passé de 67% à 56.5%.

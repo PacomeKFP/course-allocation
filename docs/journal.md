@@ -137,3 +137,44 @@ avant l'algo, avec la cause précise.
 - N16 (A-CEEI à part) → OK (`experiments/`).
 - Rangs 1-indexés + stats étendues → OK.
 - Vérification amont → OK (`src/feasibility.py`).
+
+---
+
+## 2026-07-20 — J2 · Vérificateur exhaustif, promotion de mip_full, doc
+
+**Livrables**
+
+- `src/verif_contraintes.py` — 6 vérifications post-affectation :
+  accessibilité, exclusion instant, unicité ECUE, capacité, complétude
+  par régime, charge en crédits. Utilisable sur toute sortie d'algo.
+- `src/algo_mip_full.py` promu depuis `experiments/`. Intégré au bench
+  principal.
+- Bench enrichi : chaque algo affiche ses violations de contraintes.
+- `README.md` complet (description, install, structure, usage, algos,
+  formats, doc, contribution).
+- `requirements.txt` avec versions pinnées.
+- `docs/memoire.md` mis à jour (mip_full en algo recommandé,
+  conventions rangs 1-indexés, bug equite résolu).
+
+**Bug critique fixé dans algo_equite**
+
+La boucle de swaps utilisait des tuples `(eid, oid)` cachés qui
+devenaient stales après un premier swap. Un swap ultérieur (e1↔e3)
+avec la valeur cachée `o1` (alors que a[e1] valait déjà `o2` du
+premier swap) laissait e2 ET e3 sur la même id_occ. Sur les données
+de test : jusqu'à **192 étudiants affectés à un cours à 60 places**.
+Fix : re-lire `a[e1][bloc]` et `a[e2][bloc]` à chaque itération de la
+boucle interne. Impact : 1er choix passé de 67 % → 56.5 %, mais 0
+violation de capacité.
+
+**Résultats bench actualisés avec vérification**
+
+| algo | aff | 1er | exclusion_instant | complétude | capacité |
+|---|:---:|:---:|:---:|:---:|:---:|
+| flow | 96% | 58% | 364 | 27 | 0 |
+| equite | 96% | 57% | 347 | 27 | 0 |
+| **mip_full** | **93%** | 57% | **0** | **0** | **0** |
+
+Seul **mip_full** respecte toutes les contraintes. Trade-off : légère
+baisse d'affectations (93 vs 96 %) car il refuse toute solution
+violant les règles de l'enseignante.

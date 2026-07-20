@@ -1,0 +1,18 @@
+# Cœur (obligatoire pour tous les algos utilitaires)
+pandas>=2.0
+numpy>=1.24
+scipy>=1.11
+networkx>=3.0
+
+# Solveur MIP/CP-SAT (algo_mip, algo_mip_full)
+ortools>=9.10
+
+# Deferred Acceptance (algo_da)
+matching>=1.4
+
+# Allocation équitable expérimentale (experiments/algo_aceei)
+fairpyx>=0.0.4
+
+# App interactive
+streamlit>=1.30
+idna>=3.0
