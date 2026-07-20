@@ -47,7 +47,6 @@ class Report:
                             ).sort_values(["period", "slot"])
 
     def stats_global(self) -> dict:
-        """Distribution globale des rangs obtenus (1er choix, 2e, …)."""
         rs = self._obtained_ranks(); d = Counter(rs); n = len(rs)
         return {"n_expected": len(self.c.voeux), "n_assigned": n,
                 "assignment_rate": n / len(self.c.voeux) if self.c.voeux else 0,
@@ -58,14 +57,19 @@ class Report:
     def stats_per_demande(self) -> pd.DataFrame:
         """Distribution des rangs par IDDemande."""
         rows = []
-        for d in self.c.demandes():
-            rs = [rank(v, self.a[(v.id_student, v.id_demande)]) for v in self.c.voeux
-                  if v.id_demande == d and self.a.get((v.id_student, v.id_demande))]
-            if rs:
-                rows.append({"id_demande": d, "n": len(rs),
-                             "first_choice": Counter(rs).get(1, 0),
-                             "avg_rank": sum(rs) / len(rs), "worst_rank": max(rs)})
+        for d, rs in self.ranks_per_demande().items():
+            rows.append({"id_demande": d, "n": len(rs),
+                         "first_choice": Counter(rs).get(1, 0),
+                         "avg_rank": sum(rs) / len(rs), "worst_rank": max(rs)})
         return pd.DataFrame(rows)
+
+    def ranks_per_demande(self) -> dict[str, list[int]]:
+        """Rangs bruts obtenus par demande, exploitable par une vue graphique."""
+        out: dict[str, list[int]] = {}
+        for v in self.c.voeux:
+            oid = self.a.get((v.id_student, v.id_demande))
+            if oid: out.setdefault(v.id_demande, []).append(rank(v, oid))
+        return out
 
     def stats_compensation(self) -> pd.DataFrame:
         """Compensation inter-demandes : pire rang, somme des rangs par élève."""
@@ -84,13 +88,10 @@ class Report:
         buckets = Counter()
         for oid in v.ranked_occurrences:
             o = self.c.occurrences.get(oid)
-            if o is None:
-                buckets["occurrence(s) inconnue(s)"] += 1; continue
+            if o is None: buckets["occurrence(s) inconnue(s)"] += 1; continue
             reasons = self.f.check(s, o)
-            if not reasons:
-                buckets["vœu(x) saturé(s)"] += 1; continue
-            for msg in reasons:
-                buckets[_CAUSE_LABEL(msg)] += 1
+            if not reasons: buckets["vœu(x) saturé(s)"] += 1; continue
+            for msg in reasons: buckets[_CAUSE_LABEL(msg)] += 1
         parts = [f"{n} {lbl}" for lbl, n in buckets.most_common()]
         return f"sur {len(v.ranked_occurrences)} vœu(x) : " + " ; ".join(parts)
 
