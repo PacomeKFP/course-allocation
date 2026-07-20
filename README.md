@@ -30,9 +30,7 @@ Python 3.11+.
 ### CLI
 
 ```bash
-python -m src.pipeline data/2026/etudiants_anonymises.csv \
-                      data/2026/campagne_synthetique.csv \
-                      --out out/ --time-limit 60
+python -m src.pipeline data/2026/etudiants_anonymises.csv  data/2026/campagne_synthetique.csv  --out out/ --time-limit 60
 ```
 
 ### App interactive
