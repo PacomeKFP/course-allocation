@@ -16,3 +16,5 @@ outputs/
 *.log
 .DS_Store
 old/
+files/
+synthesizer/

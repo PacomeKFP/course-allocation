@@ -8,8 +8,8 @@
 
 Exposé aussi en CLI :
 
-    python -m src.pipeline data/2026/etudiants_anonymises.csv \\
-                           data/2026/campagne_synthetique.csv \\
+    python -m src.pipeline data/samples/etudiants_anonymises.csv \\
+                           data/samples/campagne_synthetique.csv \\
                            --out out/
 """
 from __future__ import annotations
