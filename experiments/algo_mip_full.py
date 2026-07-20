@@ -15,16 +15,14 @@ Règles encodées :
   3. **Unicité ECUE dans l'année** — un ECUE ne peut être suivi qu'une
      seule fois, même s'il apparaît dans plusieurs occurrences.
   4. **Complétude par régime** :
-     - FISE : exactement 1 occurrence par bloc de l'instance (avec
-       Module d'ouverture scindé S1/S2 si présent) — pénalité BIG_M par
+     - FISE : exactement 1 occurrence par bloc — pénalité BIG_M par
        bloc non affecté.
-     - FISEA : au maximum 3 ECUE par semestre.
+     - FISEA : au plus 3 ECUE par semestre + bonus qui encourage
+       l'atteinte de la cible.
   5. **Capacité** — nombre d'affectations ≤ capacité disponible.
 
-Objectif :
-    sum(rang × x)             [utilitaire, 1er choix maximisé]
-  + BIG_M × slack_non_affect  [complétude par bloc]
-  + λ × tau_remplissage_max   [équilibrage entre occurrences]
+Objectif : minimiser ``sum(coût × x) + BIG_M × slacks + λ × tau_max`` où
+``tau_max`` borne le taux de remplissage maximum sur toutes les occurrences.
 """
 from __future__ import annotations
 import sys
@@ -33,17 +31,20 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ortools.sat.python import cp_model
 from src.model import Instance, Assignment
-from src.common import rang, empty_assignment
+from src.common import cout, empty_assignment
 from src.filters import accessible
-from src.constantes import BONUS_ANGLOPHONE
+from src.constantes import semestre_de_periode
+from src.algo_mip import BIG_M
 
 NAME = "mip_full"
-BIG_M = 10_000
 LAMBDA_EQUILIBRE = 50
 
 
-def _semestre(periode: int) -> int:
-    return 1 if periode in (1, 2) else 2
+def _group_by(items, key_fn):
+    groups: dict = {}
+    for it in items:
+        groups.setdefault(key_fn(it), []).append(it)
+    return groups
 
 
 def _split_modules(inst: Instance) -> Instance:
@@ -51,14 +52,11 @@ def _split_modules(inst: Instance) -> Instance:
     inst = deepcopy(inst)
     for o in inst.occurrences:
         if "Module d'ouverture" in o.bloc:
-            o.bloc = f"{o.bloc.rstrip()} (S{_semestre(o.periode)})"
+            o.bloc = f"{o.bloc.rstrip()} (S{semestre_de_periode(o.periode)})"
     inst.blocs = sorted({o.bloc for o in inst.occurrences})
+    base = lambda b: b.split(" (S")[0].strip() if "Module d'ouverture" in b else b
     for s in inst.students:
-        new_vpb: dict[str, list[str]] = {}
-        for b in inst.blocs:
-            key = b.split(" (S")[0].strip() if "Module d'ouverture" in b else b
-            new_vpb[b] = s.voeux_par_bloc.get(key, s.voeux_par_bloc.get(b, []))
-        s.voeux_par_bloc = new_vpb
+        s.voeux_par_bloc = {b: s.voeux_par_bloc.get(base(b), []) for b in inst.blocs}
     return inst
 
 
@@ -66,75 +64,59 @@ def solve(inst: Instance, time_limit_s: float = 60.0, workers: int = 8) -> Assig
     inst = _split_modules(inst)
     m = cp_model.CpModel()
     x: dict[tuple[str, str], cp_model.IntVar] = {}
-    slack: dict[tuple[str, str], cp_model.IntVar] = {}
+    par_occ: dict[str, list] = {o.id_occ: [] for o in inst.occurrences}
     cost_terms = []
 
+    # Variables + coûts + indexation par occurrence en une seule passe.
     for s in inst.students:
         for o in inst.occurrences:
             if not accessible(s, o):
                 continue
             v = m.NewBoolVar(f"x_{s.id_eleve}_{o.id_occ}")
             x[(s.id_eleve, o.id_occ)] = v
-            c = rang(s, o) + 1
-            if s.langue == "EN" and o.langue == "EN":
-                c -= BONUS_ANGLOPHONE
-            cost_terms.append(c * v)
+            par_occ[o.id_occ].append(v)
+            cost_terms.append(cout(s, o) * v)
 
-    # (2) Exclusion inter-occurrences au même instant.
-    par_instant: dict[tuple[int, str], list] = {}
-    for o in inst.occurrences:
-        par_instant.setdefault((o.periode, o.creneau), []).append(o)
-    for s in inst.students:
-        for occs in par_instant.values():
-            vs = [x[(s.id_eleve, o.id_occ)] for o in occs if (s.id_eleve, o.id_occ) in x]
-            if len(vs) > 1:
-                m.Add(sum(vs) <= 1)
+    par_instant = _group_by(inst.occurrences, lambda o: (o.periode, o.creneau))
+    par_ue = _group_by(inst.occurrences, lambda o: o.id_ue)
+    par_bloc = _group_by(inst.occurrences, lambda o: o.bloc)
+    par_sem = _group_by(inst.occurrences, lambda o: semestre_de_periode(o.periode))
 
-    # (3) Unicité ECUE dans l'année.
-    par_ue: dict[str, list] = {}
-    for o in inst.occurrences:
-        par_ue.setdefault(o.id_ue, []).append(o)
+    # (2) + (3) exclusions mutuelles : au plus 1 occ par instant ET par ECUE.
     for s in inst.students:
-        for occs in par_ue.values():
-            vs = [x[(s.id_eleve, o.id_occ)] for o in occs if (s.id_eleve, o.id_occ) in x]
-            if len(vs) > 1:
-                m.Add(sum(vs) <= 1)
+        for buckets in (par_instant.values(), par_ue.values()):
+            for occs in buckets:
+                vs = [v for o in occs
+                      if (v := x.get((s.id_eleve, o.id_occ))) is not None]
+                if len(vs) > 1:
+                    m.Add(sum(vs) <= 1)
 
     # (4) Complétude selon régime.
     for s in inst.students:
         if s.regime == "apprenti":
             for sem in (1, 2):
-                v_sem = [x[(s.id_eleve, o.id_occ)] for o in inst.occurrences
-                         if _semestre(o.periode) == sem and (s.id_eleve, o.id_occ) in x]
+                v_sem = [v for o in par_sem.get(sem, [])
+                         if (v := x.get((s.id_eleve, o.id_occ))) is not None]
                 if v_sem:
-                    m.Add(sum(v_sem) <= 3)   # plafond dur : 3 ECUE / semestre
-                    # Bonus (soft) sur ≥ 3 : on encourage 3 en pénalisant le manquant.
-                    manque = m.NewIntVar(0, 3, f"manque_{s.id_eleve}_S{sem}")
-                    m.Add(manque == 3 - sum(v_sem))
-                    cost_terms.append(BIG_M * manque)
+                    m.Add(sum(v_sem) <= 3)
+                    # -BIG_M · v_sem = -BIG_M · sum(v_sem) + constante ignorée.
+                    cost_terms.extend(-BIG_M * v for v in v_sem)
         else:
-            # FISE : 1 occurrence par bloc, slack pénalisée.
-            for bloc in inst.blocs:
-                v_bloc = [x[(s.id_eleve, o.id_occ)] for o in inst.occ_by_bloc(bloc)
-                          if (s.id_eleve, o.id_occ) in x]
+            for bloc, occs in par_bloc.items():
+                v_bloc = [v for o in occs
+                          if (v := x.get((s.id_eleve, o.id_occ))) is not None]
                 sl = m.NewBoolVar(f"u_{s.id_eleve}_{bloc}")
-                slack[(s.id_eleve, bloc)] = sl
-                m.Add(sum(v_bloc) + sl == 1) if v_bloc else m.Add(sl == 1)
+                m.Add(sum(v_bloc) + sl == 1)
                 cost_terms.append(BIG_M * sl)
 
-    # (5) Capacité par occurrence.
-    for o in inst.occurrences:
-        vs = [x[(s.id_eleve, o.id_occ)] for s in inst.students
-              if (s.id_eleve, o.id_occ) in x]
-        if vs:
-            m.Add(sum(vs) <= o.cap_dispo)
-
-    # Équilibrage : minimiser le taux de remplissage max (en pourcentage).
+    # (5) Capacité + équilibrage : mêmes vs = par_occ[oid], une seule boucle.
     tau_max = m.NewIntVar(0, 100, "tau_max")
     for o in inst.occurrences:
-        vs = [x[(s.id_eleve, o.id_occ)] for s in inst.students
-              if (s.id_eleve, o.id_occ) in x]
-        if vs and o.cap_dispo > 0:
+        vs = par_occ[o.id_occ]
+        if not vs:
+            continue
+        m.Add(sum(vs) <= o.cap_dispo)
+        if o.cap_dispo > 0:
             m.Add(100 * sum(vs) <= tau_max * o.cap_dispo)
 
     m.Minimize(sum(cost_terms) + LAMBDA_EQUILIBRE * tau_max)
@@ -148,8 +130,9 @@ def solve(inst: Instance, time_limit_s: float = 60.0, workers: int = 8) -> Assig
     print(f"  [mip_full] {solver.StatusName(status)} "
           f"obj={solver.ObjectiveValue():.0f} tau_max={solver.Value(tau_max)}%")
 
+    bloc_of = {o.id_occ: o.bloc for o in inst.occurrences}
     result = empty_assignment(inst)
     for (eid, oid), v in x.items():
         if solver.Value(v) == 1:
-            result[eid][inst.occ_by_id(oid).bloc] = oid
+            result[eid][bloc_of[oid]] = oid
     return result
