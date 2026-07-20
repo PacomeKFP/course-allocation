@@ -25,16 +25,13 @@ Objectif : minimiser ``sum(coût × x) + BIG_M × slacks + λ × tau_max`` où
 ``tau_max`` borne le taux de remplissage maximum sur toutes les occurrences.
 """
 from __future__ import annotations
-import sys
 from copy import deepcopy
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from ortools.sat.python import cp_model
-from src.model import Instance, Assignment
-from src.common import cout, empty_assignment
-from src.filters import accessible
-from src.constantes import semestre_de_periode
-from src.algo_mip import BIG_M
+from .model import Instance, Assignment
+from .common import cout, empty_assignment
+from .filters import accessible
+from .constantes import semestre_de_periode
+from .algo_mip import BIG_M
 
 NAME = "mip_full"
 LAMBDA_EQUILIBRE = 50

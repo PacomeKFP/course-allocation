@@ -16,10 +16,11 @@ from .report import (resume, distribution_rangs, remplissage,
                     non_affectes, satisfaction_par_eleve)
 from . import feasibility
 from . import (algo_rsd, algo_flow, algo_mip, algo_hungarian, algo_da,
-               algo_equite)
+               algo_equite, algo_mip_full)
+from . import verif_contraintes
 
 ALGOS = {a.NAME: a for a in (algo_rsd, algo_flow, algo_mip, algo_hungarian,
-                              algo_da, algo_equite)}
+                              algo_da, algo_equite, algo_mip_full)}
 
 
 def run(inst, algo_name: str) -> tuple[dict, dict, float]:
@@ -65,12 +66,17 @@ def bench(data_dir: str, out_dir: str, only: str | None = None) -> None:
         equite_par_groupe(inst, a).to_csv(out / f"equite_{name}.csv", sep=";", index=False)
         non_affectes(inst, a).to_csv(out / f"non_affectes_{name}.csv", sep=";", index=False)
         satisfaction_par_eleve(inst, a).to_csv(out / f"satisfaction_{name}.csv", sep=";", index=False)
+        v = verif_contraintes.verifier(inst, a)["resume"]
+        r["violations"] = v["total_violations"]
+        print(f"  contraintes : " + " ".join(f"{k}={v[k]}" for k in
+              ("accessibilite", "exclusion_instant", "unicite_ecue",
+               "capacite", "completude", "charge")))
 
     df = pd.DataFrame(resumes)
     df = df[["algo", "temps_s", "taux_affectation", "rang_moyen", "rang_median",
              "rang_q75", "rang_d9", "rang_max",
              "part_1er_choix", "part_top3", "part_rang_gte_5",
-             "n_affectations"]]
+             "n_affectations", "violations"]]
     df.to_csv(out / "bench_summary.csv", sep=";", index=False)
     _write_report(inst, df, Path("docs/resultats.md"), dists, feas)
     print(f"\nBench terminé. Résultats dans {out}/ et docs/resultats.md")

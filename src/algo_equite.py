@@ -57,10 +57,12 @@ def _pass(inst: Instance, a: Assignment, seed: int) -> bool:
                     improved = True
                     break
 
-        assigned = [(eid, a[eid][bloc]) for eid in a if a[eid][bloc]]
-        for i, (e1, o1) in enumerate(assigned):
-            for e2, o2 in assigned[i+1:]:
-                if o1 == o2:
+        eids = [eid for eid in a if a[eid][bloc]]
+        for i, e1 in enumerate(eids):
+            for e2 in eids[i+1:]:
+                # Re-lire les affectations courantes (invalidées par swaps précédents).
+                o1, o2 = a[e1][bloc], a[e2][bloc]
+                if not o1 or not o2 or o1 == o2:
                     continue
                 s1, s2 = student[e1], student[e2]
                 if not (accessible(s1, occ[o2]) and accessible(s2, occ[o1])):
