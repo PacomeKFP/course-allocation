@@ -9,25 +9,26 @@ from . import labels as L
 
 
 def render(state) -> None:
-    st.info("Téléchargez le CSV d'import Synapse (obligatoire) et/ou un fichier "
-            "Excel multi-onglets récapitulant l'ensemble du rapport.")
+    st.caption("Téléchargez le CSV d'import Synapse (à réinjecter dans le "
+               "système d'information de la scolarité) et un rapport Excel "
+               "multi-onglets récapitulant l'affectation.")
     tmp = Path(tempfile.gettempdir()) / "synapse_import.csv"
     export_synapse_import(state.campaign, state.assignment, tmp)
     c1, c2 = st.columns(2)
     with c1:
         st.download_button(
-            "⬇️ CSV import Synapse", data=tmp.read_bytes(),
+            "Télécharger le CSV pour Synapse", data=tmp.read_bytes(),
             file_name="synapse_import.csv", mime="text/csv",
             use_container_width=True,
             help="À réinjecter tel quel dans Synapse pour valider les inscriptions")
     with c2:
         st.download_button(
-            "⬇️ Rapport Excel (multi-onglets)", data=_build_excel(state),
+            "Télécharger le rapport Excel", data=_build_excel(state),
             file_name="rapport_affectation.xlsx",
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             use_container_width=True,
-            help="5 onglets : non affectés · remplissage · stats par demande · "
-                 "compensation · distribution des rangs")
+            help="Cinq onglets : non affectés, remplissage, statistiques "
+                 "par demande, équité par élève, distribution des rangs")
 
 
 def _build_excel(state) -> bytes:
@@ -40,7 +41,7 @@ def _build_excel(state) -> bytes:
         filling.to_excel(w, sheet_name="Remplissage", index=False)
         r.stats_per_demande().to_excel(w, sheet_name="Stats par demande", index=False)
         r.stats_compensation().sort_values("worst_rank", ascending=False).to_excel(
-            w, sheet_name="Compensation", index=False)
+            w, sheet_name="Équité par élève", index=False)
         pd.DataFrame([(f"#{k}", v) for k, v in state.stats["rank_distribution"].items()],
                      columns=["Rang obtenu", "Nombre"]).to_excel(
             w, sheet_name="Distribution rangs", index=False)

@@ -1,6 +1,14 @@
-# App forcée en thème clair (préférence utilisateur).
+# Charte inspirée de Télécom Paris (bleu institutionnel + carmin en accent).
 [theme]
 base = "light"
+primaryColor = "#003a6b"          # bleu Télécom
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f4f6fa"
+textColor = "#1a1a1a"
+font = "sans serif"
 
 [browser]
 gatherUsageStats = false
+
+[server]
+runOnSave = true

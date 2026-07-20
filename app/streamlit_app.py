@@ -1,11 +1,6 @@
-"""App Streamlit — affectation des cours électifs de 2A.
-
-Contrôleur principal : chargement des CSV, exécution du pipeline,
-persistance en session (pour éviter le reset après download), délégation
-du rendu à ``views.py``.
-"""
+"""Interface principale — affectation des cours électifs 2A Télécom Paris."""
 from __future__ import annotations
-import sys, tempfile
+import sys, tempfile, time
 from dataclasses import dataclass
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -15,12 +10,13 @@ from src.data import build_campaign
 from src.solvers import PriorityChain, MipSolver
 from src.reporting import Report
 from app import views
+from app.theme import apply_theme, header, metric_row
 
-st.set_page_config(page_title="Affectation cours 2A — Télécom Paris",
-                   page_icon="🎓", layout="wide")
-st.title("🎓 Affectation des cours électifs de 2A")
-st.caption("Chargez les fichiers Synapse, lancez le solveur, explorez le rapport, "
-           "téléchargez les sorties.")
+st.set_page_config(page_title="Affectation des cours électifs — Télécom Paris",
+                   layout="wide", initial_sidebar_state="expanded")
+apply_theme()
+header("Affectation des cours électifs de 2A",
+       "Télécom Paris — campagne d'inscription pédagogique")
 
 
 @dataclass
@@ -29,67 +25,75 @@ class State:
     assignment: dict
     report: Report
     stats: dict
+    solver_time_s: float
 
 
-def _save(uploaded) -> str | None:
-    if uploaded is None:
-        return None
+def _save(u):
+    if u is None: return None
     tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
-    tmp.write(uploaded.read()); tmp.close()
-    return tmp.name
+    tmp.write(u.read()); tmp.close(); return tmp.name
 
 
 with st.sidebar:
-    st.header("1. Charger les fichiers")
-    up_students = st.file_uploader("Liste des étudiants (CSV)", type=["csv"],
-                                   help="Format Synapse : etudiants_anonymises.csv")
-    up_campaign = st.file_uploader("Vœux de la campagne (CSV)", type=["csv"],
-                                   help="Format Synapse : structure-export")
-    up_ecue = st.file_uploader("Liste ECUE (optionnel)", type=["csv"],
-                               help="Sinon la version embarquée par défaut est utilisée")
+    st.markdown("### Fichiers en entrée")
+    up_students = st.file_uploader("Liste des étudiants", type=["csv"],
+                                    help="Format Synapse : etudiants_anonymises.csv")
+    up_campaign = st.file_uploader("Vœux de la campagne", type=["csv"],
+                                    help="Format Synapse : structure-export")
+    up_ecue = st.file_uploader("Liste des occurrences (facultatif)", type=["csv"],
+                                help="Sans ce fichier, la version embarquée est utilisée")
+    st.markdown("### Paramètres du solveur")
+    puissance = st.slider("Puissance de la pénalité de rang", 1, 4, 2,
+                          help="Coût = rang^p. Plus grand p pénalise davantage les rangs éloignés.")
+    temps_max = st.slider("Temps maximum du solveur (secondes)", 5, 300, 60)
+    st.markdown("### Actions")
+    resoudre = st.button("Lancer la résolution", type="primary",
+                         use_container_width=True,
+                         disabled=not (up_students and up_campaign))
+    if "state" in st.session_state and st.button("Réinitialiser", use_container_width=True):
+        for k in ("state", "campaign_preview"):
+            st.session_state.pop(k, None)
+        st.rerun()
 
-    st.header("2. Paramètres")
-    cost_power = st.slider("Puissance du coût (rang^p)", 1, 4, 2,
-                           help="Plus grand = pénalise plus fort les rangs éloignés. "
-                                "2 = quadratique (recommandé).")
-    time_limit = st.slider("Temps max solveur (s)", 5, 300, 60)
+if up_students and up_campaign and "campaign_preview" not in st.session_state:
+    st.session_state.campaign_preview = build_campaign(
+        _save(up_students), _save(up_campaign), _save(up_ecue))
 
-    st.header("3. Lancer")
-    run = st.button("▶️ Résoudre l'affectation", type="primary",
-                    use_container_width=True,
-                    disabled=not (up_students and up_campaign))
-    if "state" in st.session_state:
-        if st.button("🔄 Réinitialiser", use_container_width=True):
-            del st.session_state.state
-            st.rerun()
-
-if run:
-    with st.spinner("Chargement des CSV…"):
-        c = build_campaign(_save(up_students), _save(up_campaign), _save(up_ecue))
-    with st.spinner("Application des priorités (anglophones, apprentis)…"):
+if resoudre:
+    c = st.session_state.campaign_preview
+    with st.spinner("Priorités (anglophones, apprentis)…"):
         pre = PriorityChain().apply(c)
-    with st.spinner(f"Optimisation MIP (max {time_limit}s)…"):
-        a = MipSolver(cost_power=cost_power, time_limit_s=time_limit).solve(c, pre_assignment=pre)
+    with st.spinner(f"Optimisation (max {temps_max} s)…"):
+        t0 = time.time()
+        a = MipSolver(cost_power=puissance, time_limit_s=temps_max).solve(c, pre_assignment=pre)
+        dt = time.time() - t0
     r = Report(c, a)
-    st.session_state.state = State(c, a, r, r.stats_global())
+    st.session_state.state = State(c, a, r, r.stats_global(), dt)
     st.rerun()
 
-if "state" not in st.session_state:
-    st.info("👈 Charge les deux CSV obligatoires (étudiants + campagne) dans la barre "
-            "latérale, ajuste les paramètres, puis clique sur « Résoudre ».")
-    st.stop()
-
-state = st.session_state.state
-st.success(f"✅ {len(state.campaign.students)} étudiants · "
-           f"{len(state.campaign.occurrences)} occurrences · "
-           f"{len(state.campaign.voeux)} vœux non-vides · "
-           f"{len(state.campaign.demandes())} demandes")
-
-tabs = st.tabs(["📊 Vue d'ensemble", "❌ Non affectés", "📦 Remplissage",
-                "📈 Par demande", "⚖️ Compensation", "⬇️ Export"])
-with tabs[0]: views.summary(state)
-with tabs[1]: views.not_assigned(state)
-with tabs[2]: views.filling(state)
-with tabs[3]: views.per_demande(state)
-with tabs[4]: views.compensation(state)
-with tabs[5]: views.export(state)
+if "state" in st.session_state:
+    s = st.session_state.state
+    metric_row([
+        ("Étudiants", len(s.campaign.students), None),
+        ("Occurrences", len(s.campaign.occurrences), None),
+        ("Vœux exprimés", len(s.campaign.voeux), None),
+        ("Demandes", len(s.campaign.demandes()), None),
+        ("Temps d'optimisation", f"{s.solver_time_s:.1f} s",
+         "Temps mis par le solveur CP-SAT (hors chargement)"),
+    ])
+    tabs = st.tabs(["Synthèse", "Non affectés", "Remplissage",
+                    "Résultats par demande", "Équité par élève", "Export"])
+    for tab, view in zip(tabs, [views.summary, views.not_assigned, views.filling,
+                                 views.per_demande, views.compensation, views.export]):
+        with tab: view(s)
+elif "campaign_preview" in st.session_state:
+    c = st.session_state.campaign_preview
+    metric_row([("Étudiants", len(c.students), None),
+                ("Occurrences", len(c.occurrences), None),
+                ("Vœux exprimés", len(c.voeux), None),
+                ("Demandes", len(c.demandes()), None)])
+    st.info("Les fichiers sont chargés. Ajustez les paramètres à gauche puis "
+            "cliquez sur **Lancer la résolution**.")
+else:
+    st.info("Chargez à gauche la liste des étudiants et l'export de la campagne "
+            "de vœux Synapse pour démarrer.")

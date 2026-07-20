@@ -35,10 +35,11 @@ def run_campaign(students_csv: str | Path, campaign_csv: str | Path,
 
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)
     export_synapse_import(campaign, assignment, out / "synapse_import.csv")
-    report.not_assigned().to_csv(out / "not_assigned.csv", sep=";", index=False)
-    report.filling().to_csv(out / "filling.csv", sep=";", index=False)
-    report.stats_per_demande().to_csv(out / "stats_per_demande.csv", sep=";", index=False)
-    report.stats_compensation().to_csv(out / "stats_compensation.csv", sep=";", index=False)
+    csv_opts = dict(sep=";", index=False, encoding="utf-8-sig")
+    report.not_assigned().to_csv(out / "non_affectes.csv", **csv_opts)
+    report.filling().to_csv(out / "remplissage.csv", **csv_opts)
+    report.stats_per_demande().to_csv(out / "stats_par_demande.csv", **csv_opts)
+    report.stats_compensation().to_csv(out / "stats_compensation.csv", **csv_opts)
     return campaign, assignment, report
 
 

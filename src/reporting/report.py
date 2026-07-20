@@ -82,15 +82,38 @@ class Report:
                               "sum_ranks": sum(rs)} for sid, rs in by_student.items()])
 
     def _diagnose(self, s, v) -> str:
-        """Reconstruit la raison de non-affectation d'une paire (élève, demande)."""
+        """Reconstruit la raison de non-affectation avec ventilation détaillée.
+
+        Décompte pour chaque vœu classé : occurrence inconnue / raison de
+        rejet Feasibility / occurrence saturée. Retourne un résumé lisible.
+        """
         if not v.ranked_occurrences:
-            return "aucun vœu classé"
-        accessible = [oid for oid in v.ranked_occurrences
-                      if oid in self.c.occurrences
-                      and self.f.is_accessible(s, self.c.occurrences[oid])]
-        if not accessible:
-            return "aucun vœu accessible (créneau/langue/FISEA/entreprise)"
-        return "capacité saturée sur tous les vœux accessibles"
+            return "aucun vœu classé pour cette demande"
+        n_total = len(v.ranked_occurrences)
+        n_unknown = n_creneau = n_fisea = n_slot = n_jour = n_langue = n_pleine = 0
+        for oid in v.ranked_occurrences:
+            o = self.c.occurrences.get(oid)
+            if o is None:
+                n_unknown += 1; continue
+            reasons = self.f.check(s, o)
+            if not reasons:
+                n_pleine += 1
+                continue
+            for msg in reasons:
+                if "créneau non fixé" in msg: n_creneau += 1
+                elif "FISEA" in msg: n_fisea += 1
+                elif "occupé par filière" in msg: n_slot += 1
+                elif "entreprise" in msg: n_jour += 1
+                elif "français, élève anglophone" in msg: n_langue += 1
+        parts = []
+        if n_pleine: parts.append(f"{n_pleine} vœu(x) saturé(s)")
+        if n_slot: parts.append(f"{n_slot} conflit(s) avec créneau de filière")
+        if n_jour: parts.append(f"{n_jour} tombe(nt) sur jour d'entreprise")
+        if n_langue: parts.append(f"{n_langue} en français (élève anglophone)")
+        if n_fisea: parts.append(f"{n_fisea} réservé(s) apprentis")
+        if n_creneau: parts.append(f"{n_creneau} sans créneau fixé")
+        if n_unknown: parts.append(f"{n_unknown} occurrence(s) inconnue(s)")
+        return f"sur {n_total} vœu(x) : " + " ; ".join(parts) if parts else "cause indéterminée"
 
     def _obtained_ranks(self) -> list[int]:
         return [rank(v, self.a[(v.id_student, v.id_demande)])

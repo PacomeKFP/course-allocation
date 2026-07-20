@@ -25,7 +25,8 @@ def export_synapse_import(campaign: Campaign, assignment: Assignment,
         header += [f"IDDemande {i}", f"IDOccur {i}"]
 
     Path(path).parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", newline="", encoding="utf-8") as fp:
+    # utf-8-sig (BOM) pour compatibilité Excel/Synapse.
+    with open(path, "w", newline="", encoding="utf-8-sig") as fp:
         writer = csv.writer(fp, delimiter=";")
         writer.writerow(header)
         for id_student, choices in sorted(by_student.items()):
