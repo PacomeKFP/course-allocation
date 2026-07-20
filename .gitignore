@@ -1,5 +1,11 @@
 .claude/
 __pycache__/
+out/
+docs/memoire.md
+docs/journal.md
+notes.md
+notes-perso.md
+updates.md
 *.pyc
 .pytest_cache/
 .venv/
