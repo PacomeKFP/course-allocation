@@ -25,15 +25,13 @@ class Report:
 
     def not_assigned(self) -> pd.DataFrame:
         """Liste des paires (élève, demande) non affectées, avec cause."""
-        rows = []
-        for v in self.c.voeux:
-            if self.a.get((v.id_student, v.id_demande)):
-                continue
-            s = self.c.students[v.id_student]
-            reasons = self._diagnose(s, v)
-            rows.append({"id_student": s.id_student, "id_demande": v.id_demande,
-                         "regime": s.regime, "filieres": "+".join(s.filieres),
-                         "n_voeux": len(v.ranked_occurrences), "cause": reasons})
+        rows = [{"id_student": v.id_student, "id_demande": v.id_demande,
+                 "regime": self.c.students[v.id_student].regime,
+                 "filieres": "+".join(self.c.students[v.id_student].filieres),
+                 "n_voeux": len(v.ranked_occurrences),
+                 "cause": self._diagnose(self.c.students[v.id_student], v)}
+                for v in self.c.voeux
+                if not self.a.get((v.id_student, v.id_demande))]
         return pd.DataFrame(rows)
 
     def filling(self) -> pd.DataFrame:
