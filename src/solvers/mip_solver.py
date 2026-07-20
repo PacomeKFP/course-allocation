@@ -8,7 +8,7 @@ objectif = ``Σ rang^p × x + BIG_M × slacks``.
 from __future__ import annotations
 from collections import Counter
 from ortools.sat.python import cp_model
-from ..data.model import Campaign, Assignment
+from ..data.model import Assignment
 from ..data.constants import BIG_M, COST_POWER, ENGLISH_MATCH_BONUS
 from ..rules import OccurrenceConstraints, StudentConstraints
 from .base import Solver, empty_assignment, rank

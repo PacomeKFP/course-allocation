@@ -18,7 +18,6 @@ import time
 from pathlib import Path
 from .data import build_campaign
 from .data.model import Campaign, Assignment
-from .rules import Feasibility
 from .solvers import PriorityChain, MipSolver, Solver
 from .reporting import Report, export_synapse_import
 
