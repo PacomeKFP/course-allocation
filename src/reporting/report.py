@@ -31,18 +31,16 @@ class Report:
             if self.a.get((v.id_student, v.id_demande)):
                 continue
             s = self.c.students[v.id_student]
-            occs = [self.c.occurrences.get(oid) for oid in v.ranked_occurrences]
-            bloc = next((o.bloc or o.code_ue for o in occs if o and (o.bloc or o.code_ue)), "")
+            bloc = self.c.bloc_of(v)
             rows.append({
                 "id_student": v.id_student,
-                "student_info": f"{s.regime}|{'FR' if s.francophone else 'EN'}|{'+'.join(s.filieres)}",
+                "student_info": s.info,
                 "id_demande": v.id_demande,
                 "demande_label": f"{v.id_demande} | {bloc}" if bloc else v.id_demande,
                 "regime": s.regime,
                 "filieres": "+".join(s.filieres),
                 "n_voeux": len(v.ranked_occurrences),
-                "voeux_list": " ; ".join(f"{oid} | {o.label if o else ''}"
-                                         for oid, o in zip(v.ranked_occurrences, occs)),
+                "voeux_list": self.c.voeux_labels(v),
                 "cause": self._diagnose(s, v),
             })
         return pd.DataFrame(rows)
