@@ -85,9 +85,90 @@ def per_demande(state):
 def compensation(state):
     st.caption("Vue par élève. Tri décroissant sur « Pire rang » pour détecter "
                "les élèves systématiquement mal servis.")
-    st.dataframe(
-        state.report.stats_compensation().sort_values("worst_rank", ascending=False),
-        column_config=L.STATS_COMP, use_container_width=True, hide_index=True)
+    # build base dataframe and enrich with student info
+    df = state.report.stats_compensation().sort_values("worst_rank", ascending=False)
+    # enrich
+
+    def _row_info(sid):
+        s = state.campaign.students.get(sid)
+        if not s:
+            return {"statut": "", "langue": "", "filieres": ""}
+        statut = L.REGIME_LABEL.get(s.regime, s.regime)
+        langue = "FR" if s.francophone else "EN"
+        filieres = "+".join(s.filieres)
+        return {"statut": statut, "langue": langue, "filieres": filieres}
+
+    infos = [_row_info(sid) for sid in df["id_student"].tolist()]
+    if infos:
+        info_df = pd.DataFrame(infos)
+        df = pd.concat([df.reset_index(drop=True),
+                       info_df.reset_index(drop=True)], axis=1)
+
+    sel = st.dataframe(df, column_config=L.STATS_COMP, use_container_width=True,
+                       hide_index=True, on_select="rerun", selection_mode="single-row")
+    # if a student is selected, show detailed per-student report
+    if sel and sel.selection.rows:
+        row_idx = sel.selection.rows[0]
+        if 0 <= row_idx < len(df):
+            sid = str(df.iloc[row_idx]["id_student"])
+            _show_student_report(state, sid)
+
+
+def _show_student_report(state, id_student: str):
+    """Affiche le rapport détaillé pour un étudiant donné : vœux, affectations, causes."""
+    st.markdown(f"##### Rapport détaillé — Élève {id_student}")
+    s = state.campaign.students.get(id_student)
+    if not s:
+        st.write("Élève inconnu(e)")
+        return
+    # gather voeux for this student
+    voeux = [v for v in state.campaign.voeux if v.id_student == id_student]
+    not_assigned_df = state.report.not_assigned()
+    # build rows
+    rows = []
+    for v in voeux:
+        assigned = state.assignment.get((id_student, v.id_demande))
+        assigned_label = ""
+        rank_obtained = ""
+        if assigned:
+            occ = state.campaign.occurrences.get(assigned)
+            assigned_label = occ.label if occ else ""
+            try:
+                rank_obtained = f"#{rank(v, assigned)}"
+            except Exception:
+                rank_obtained = "?"
+        else:
+            # check cause in not_assigned
+            row_cause = not_assigned_df[(not_assigned_df["id_student"] == id_student) &
+                                        (not_assigned_df["id_demande"] == v.id_demande)]
+            if not row_cause.empty:
+                cause = row_cause.iloc[0]["cause"]
+            else:
+                cause = state.report._diagnose(s, v)
+        # determine bloc name from ranked occurrences (first available code_ue)
+        bloc_name = ""
+        voeux_list = []
+        for oid in v.ranked_occurrences:
+            o = state.campaign.occurrences.get(oid)
+            lab = o.label if o else ""
+            if not bloc_name and o and getattr(o, "code_ue", None):
+                bloc_name = o.code_ue
+            voeux_list.append(f"{oid} | {lab}")
+        rows.append({
+            "id_demande": v.id_demande,
+            "bloc": bloc_name,
+            "n_voeux": len(v.ranked_occurrences),
+            "voeux_list": " ; ".join(voeux_list),
+            "assigned_id": assigned or "",
+            "assigned_label": assigned_label,
+            "rank_obtained": rank_obtained,
+            "cause": (cause if not assigned else ""),
+        })
+    if not rows:
+        st.write("Aucun vœu enregistré pour cet étudiant.")
+        return
+    df = pd.DataFrame(rows)
+    st.dataframe(df, use_container_width=True, hide_index=True)
 
 
 def export(state):

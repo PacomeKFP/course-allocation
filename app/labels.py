@@ -69,6 +69,9 @@ STATS_DEMANDE = {
 
 STATS_COMP = {
     "id_student": cfg(label="Élève"),
+    "statut": cfg(label="Statut", help="Régime de l'étudiant"),
+    "langue": cfg(label="Langue", help="FR ou EN"),
+    "filieres": cfg(label="Filière(s)"),
     "n_assigned": st.column_config.NumberColumn(label="Nb affectations"),
     "avg_rank": st.column_config.NumberColumn(label="Rang moyen", format="%.2f"),
     "worst_rank": st.column_config.NumberColumn(
