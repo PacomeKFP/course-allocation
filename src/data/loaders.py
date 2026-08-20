@@ -7,6 +7,7 @@
 """
 from __future__ import annotations
 from pathlib import Path
+from typing import Tuple
 import pandas as pd
 from .model import Student, Occurrence, Voeu, Campaign
 
@@ -54,29 +55,30 @@ def load_ecue(path: str | Path | None = None) -> dict[str, Occurrence]:
     return out
 
 
-def load_campaign(path: str | Path) -> list[Voeu]:
+def load_campaign(path: str | Path) -> Tuple[list[Voeu], str]:
     """Charge un ``structure-export`` Synapse ; ignore les lignes vides (élève
     non concerné par la demande)."""
     df = pd.read_csv(path, sep=";")
     choice_cols = [c for c in df.columns if c.startswith("IDOccur Choix ")]
     voeux: list[Voeu] = []
+    campaign_id = str(df["IDCampagne"].iloc[0]) if not df.empty else ""
     for _, r in df.iterrows():
         ranked = [str(int(r[c])) for c in choice_cols if pd.notna(r[c]) and str(r[c]).strip()]
         if not ranked:
+            # TODO: peut etre qu'ici on pourrait recceuillir les étudiants qui n'ont pas de voeux pour les signaler dans le rapport
             continue
         voeux.append(Voeu(
             id_student=str(r["PersID"]),
             id_demande=str(r["IDDemande"]),
-            id_campagne=str(r["IDCampagne"]),
             ranked_occurrences=ranked,
         ))
-    return voeux
+    return voeux, campaign_id
 
 
 def build_campaign(students_path, campaign_path, ecue_path=None) -> Campaign:
     students = load_students(students_path)
     occurrences = load_ecue(ecue_path)
-    voeux = [v for v in load_campaign(campaign_path) if v.id_student in students]
-    id_campagne = voeux[0].id_campagne if voeux else ""
-    return Campaign(id_campagne=id_campagne, students=students,
+    voeux, campaign_id = load_campaign(campaign_path)
+    voeux = [v for v in voeux if v.id_student in students]
+    return Campaign(id_campagne=campaign_id, students=students,
                     occurrences=occurrences, voeux=voeux)

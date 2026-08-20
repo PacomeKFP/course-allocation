@@ -16,9 +16,10 @@ from __future__ import annotations
 import argparse
 import time
 from pathlib import Path
+
 from .data import build_campaign
 from .data.model import Campaign, Assignment
-from .solvers import PriorityChain, MipSolver, Solver
+from .solvers import PriorityChain, MipSolver, Solver, empty_assignment
 from .reporting import Report, export_synapse_import
 
 
@@ -29,8 +30,9 @@ def run_campaign(students_csv: str | Path, campaign_csv: str | Path,
     """Charge, résout, écrit — renvoie campagne, affectation, rapport."""
     campaign = build_campaign(students_csv, campaign_csv, ecue_csv)
     solver = solver or MipSolver()
-    pre = PriorityChain().apply(campaign)
-    assignment = solver.solve(campaign, pre_assignment=pre)
+    _assignment = empty_assignment(campaign)
+    priorities_assignment = PriorityChain().apply(campaign, _assignment)
+    assignment = solver.solve(campaign, pre_assignment=priorities_assignment)
     report = Report(campaign, assignment)
 
     out = Path(out_dir); out.mkdir(parents=True, exist_ok=True)

@@ -17,7 +17,7 @@ FILIERE_TO_GROUPE: dict[str, str] = {
 FILIERES_SANS_CRENEAU: set[str] = {"TSIA", "SD", "ENTP", "RECH"}
 
 SLOTS = ["Lu-am", "Lu-pm", "Ma-am", "Ma-pm", "Me-am", "Me-pm", "Ve-am", "Ve-pm"]
-DAYS = ["Lundi", "Mardi", "Mercredi", "Vendredi"]  # jeudi non utilisé
+DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"]
 
 # Créneaux occupés par chaque groupe à chaque période (§6.2 du cahier).
 SLOTS_BY_GROUP: dict[str, dict[int, list[str]]] = {
@@ -26,6 +26,14 @@ SLOTS_BY_GROUP: dict[str, dict[int, list[str]]] = {
     "B": {1: ["Lu-pm", "Ve-am"], 2: ["Lu-pm", "Ve-am"],
           3: ["Lu-am", "Me-pm"], 4: ["Lu-am", "Me-pm"]},
     "C": {p: ["Ma-am", "Ve-pm"] for p in (1, 2, 3, 4)},
+}
+
+COMPANY_DAYS_BY_GROUP: dict[str, dict[int, list[str]]] = {
+    "A": {1: ["Jeudi", "Vendredi"], 2: ["Jeudi", "Vendredi"],
+          3: ["Mercredi", "Jeudi"], 4: ["Mercredi", "Jeudi"]},
+    "B": {1: ["Mercredi", "Jeudi"], 2: ["Mercredi", "Jeudi"],
+          3: ["Jeudi", "Vendredi"], 4: ["Jeudi", "Vendredi"]},
+    "C": {p: ["Mercredi", "Jeudi"] for p in (1, 2, 3, 4)},
 }
 
 DAY_OF_SLOT: dict[str, str] = {
@@ -47,5 +55,4 @@ def semester_of(period: int) -> int:
 
 def company_days(group: str, period: int) -> set[str]:
     """Jours d'entreprise d'un apprenti (les 2 jours hors filière, hors jeudi)."""
-    school_days = {DAY_OF_SLOT[s] for s in SLOTS_BY_GROUP[group][period]}
-    return set(DAYS) - school_days
+    return  COMPANY_DAYS_BY_GROUP[group][period]

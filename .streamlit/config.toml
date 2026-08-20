@@ -1,7 +1,6 @@
-# Charte inspirée de Télécom Paris (bleu institutionnel + carmin en accent).
 [theme]
 base = "light"
-primaryColor = "#003a6b"          # bleu Télécom
+primaryColor = "#003a6b"         
 backgroundColor = "#ffffff"
 secondaryBackgroundColor = "#f4f6fa"
 textColor = "#1a1a1a"

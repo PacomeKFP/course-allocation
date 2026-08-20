@@ -7,7 +7,6 @@ ajouter une priorité : écrire une méthode et l'ajouter à ``self.rules``.
 from __future__ import annotations
 from ..data.model import Campaign, Assignment
 from ..rules import Feasibility
-from .base import empty_assignment, rank
 
 
 class PriorityChain:
@@ -17,9 +16,8 @@ class PriorityChain:
         self.feasibility = feasibility or Feasibility()
         self.rules = [self.anglophones_to_english, self.apprentices_to_fisea]
 
-    def apply(self, campaign: Campaign) -> Assignment:
+    def apply(self, campaign: Campaign, assignment: Assignment) -> Assignment:
         """Exécute toutes les priorités et renvoie l'assignation partielle."""
-        assignment = empty_assignment(campaign)
         remaining = {oid: o.cap_available for oid, o in campaign.occurrences.items()}
         for rule in self.rules:
             rule(campaign, assignment, remaining)
@@ -47,14 +45,14 @@ class PriorityChain:
             self._assign_best(v, campaign, assignment, remaining,
                               filt=lambda o: o.fisea)
 
-    def _assign_best(self, v, campaign, assignment, remaining, filt) -> None:
+    def _assign_best(self, voeu, campaign, assignment, remaining, filt) -> None:
         """Meilleur choix accessible, respectant ``filt`` et la capacité."""
-        s = campaign.students[v.id_student]
-        for id_occ in v.ranked_occurrences:
+        s = campaign.students[voeu.id_student]
+        for id_occ in voeu.ranked_occurrences:
             o = campaign.occurrences.get(id_occ)
             if not o or not filt(o) or remaining.get(id_occ, 0) == 0:
                 continue
             if self.feasibility.is_accessible(s, o):
-                assignment[(v.id_student, v.id_demande)] = id_occ
+                assignment[(voeu.id_student, voeu.id_demande)] = id_occ
                 remaining[id_occ] -= 1
                 return

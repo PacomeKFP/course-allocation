@@ -40,8 +40,7 @@ class Occurrence:
 @dataclass
 class Voeu:
     id_student: str
-    id_demande: str            # IDDemande (identifiant Synapse)
-    id_campagne: str
+    id_demande: str
     ranked_occurrences: list[str]  # id_occ ordonnés du + préféré au - préféré
 
 
