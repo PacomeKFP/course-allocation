@@ -61,8 +61,7 @@ print(report.stats_global())
 src/
 ├── data/           chargement, modèle, constantes (Student, Occurrence,
 │                   Voeu, Campaign, Assignment)
-├── rules/          Feasibility (par-paire), OccurrenceConstraints,
-│                   StudentConstraints
+├── rules/          Feasibility (par-paire), StudentConstraints
 ├── solvers/        Solver (ABC), PriorityChain, MipSolver
 ├── reporting/      exporter Synapse, Report (5 vues)
 ├── utils/          helpers transverses

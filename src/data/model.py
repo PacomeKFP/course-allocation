@@ -31,6 +31,7 @@ class Occurrence:
     cap_max: int
     cap_min: int = 0
     already_enrolled: int = 0
+    bloc: str = ""             # Bloc pédagogique (~demande) — pour le rapport
 
     @property
     def cap_available(self) -> int:

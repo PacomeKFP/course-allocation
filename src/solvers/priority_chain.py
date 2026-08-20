@@ -19,11 +19,18 @@ class PriorityChain:
     def apply(self, campaign: Campaign, assignment: Assignment) -> Assignment:
         """Exécute toutes les priorités et renvoie l'assignation partielle."""
         remaining = {oid: o.cap_available for oid, o in campaign.occurrences.items()}
+        served: dict[str, list[str]] = {}  # id_student → occurrences déjà pré-affectées
         for rule in self.rules:
-            rule(campaign, assignment, remaining)
+            rule(campaign, assignment, remaining, served)
         return assignment
 
-    def anglophones_to_english(self, campaign, assignment, remaining) -> None:
+    @staticmethod
+    def _conflicts(o, chosen: list[str], occurrences) -> bool:
+        """True si ``o`` entre en conflit (même instant ou même UE) avec ``chosen``."""
+        return any(p.id_ue == o.id_ue or (p.period, p.slot) == (o.period, o.slot)
+                   for p in (occurrences[oid] for oid in chosen))
+
+    def anglophones_to_english(self, campaign, assignment, remaining, served) -> None:
         """Sert d'abord les anglophones sur les occurrences en anglais."""
         for v in campaign.voeux:
             if assignment[(v.id_student, v.id_demande)] is not None:
@@ -31,10 +38,10 @@ class PriorityChain:
             s = campaign.students[v.id_student]
             if s.francophone:
                 continue
-            self._assign_best(v, campaign, assignment, remaining,
+            self._assign_best(v, campaign, assignment, remaining, served,
                               filt=lambda o: o.language == "EN")
 
-    def apprentices_to_fisea(self, campaign, assignment, remaining) -> None:
+    def apprentices_to_fisea(self, campaign, assignment, remaining, served) -> None:
         """Sert d'abord les apprentis sur les occurrences FISEA."""
         for v in campaign.voeux:
             if assignment[(v.id_student, v.id_demande)] is not None:
@@ -42,17 +49,23 @@ class PriorityChain:
             s = campaign.students[v.id_student]
             if s.regime != "apprentice":
                 continue
-            self._assign_best(v, campaign, assignment, remaining,
+            self._assign_best(v, campaign, assignment, remaining, served,
                               filt=lambda o: o.fisea)
 
-    def _assign_best(self, voeu, campaign, assignment, remaining, filt) -> None:
-        """Meilleur choix accessible, respectant ``filt`` et la capacité."""
+    def _assign_best(self, voeu, campaign, assignment, remaining, served, filt) -> None:
+        """Meilleur choix accessible, sans conflit avec les pré-affectations
+        déjà servies à cet élève (même instant ou même UE), respectant
+        ``filt`` et la capacité."""
         s = campaign.students[voeu.id_student]
+        chosen = served.setdefault(voeu.id_student, [])
         for id_occ in voeu.ranked_occurrences:
             o = campaign.occurrences.get(id_occ)
             if not o or not filt(o) or remaining.get(id_occ, 0) == 0:
                 continue
+            if self._conflicts(o, chosen, campaign.occurrences):
+                continue
             if self.feasibility.is_accessible(s, o):
                 assignment[(voeu.id_student, voeu.id_demande)] = id_occ
                 remaining[id_occ] -= 1
+                chosen.append(id_occ)
                 return

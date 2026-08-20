@@ -28,7 +28,12 @@ class Feasibility:
         """Le créneau doit être libre au sens des filières de l'élève."""
         for f in s.filieres:
             g = FILIERE_TO_GROUPE.get(f)
-            if g and o.slot in SLOTS_BY_GROUP[g][o.period]:
+            if not g:
+                continue
+            busy = SLOTS_BY_GROUP.get(g, {}).get(o.period)
+            if busy is None:
+                return f"période {o.period} inconnue pour la filière {f}"
+            if o.slot in busy:
                 return f"créneau {o.slot} occupé par filière {f}"
         return None
 
@@ -37,8 +42,9 @@ class Feasibility:
         if s.regime != "apprentice" or not s.filieres:
             return None
         g = FILIERE_TO_GROUPE.get(s.filieres[0])
-        if g and DAY_OF_SLOT[o.slot] in company_days(g, o.period):
-            return f"jour {DAY_OF_SLOT[o.slot]} en entreprise"
+        day = DAY_OF_SLOT.get(o.slot)
+        if g and day and day in company_days(g, o.period):
+            return f"jour {day} en entreprise"
         return None
 
     def language(self, s: Student, o: Occurrence) -> str | None:
