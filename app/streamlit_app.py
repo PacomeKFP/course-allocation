@@ -3,6 +3,8 @@ from __future__ import annotations
 import sys, tempfile, time
 from dataclasses import dataclass
 from pathlib import Path
+
+from src.solvers.base import empty_assignment
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import streamlit as st
@@ -62,7 +64,8 @@ if up_students and up_campaign and "campaign_preview" not in st.session_state:
 if resoudre:
     c = st.session_state.campaign_preview
     with st.spinner("Priorités (anglophones, apprentis)…"):
-        pre = PriorityChain().apply(c)
+        _assignment = empty_assignment(c)
+        pre = PriorityChain().apply(c, _assignment)
     with st.spinner(f"Optimisation (max {temps_max} s)…"):
         t0 = time.time()
         a = MipSolver(cost_power=puissance, time_limit_s=temps_max).solve(c, pre_assignment=pre)
