@@ -230,7 +230,11 @@ def generate_campaign(students, ecue: dict, mix: CampaignMix,
     return df_non, df_appr
 
 
-def generate_all(profile: ProfileMix, campaign: CampaignMix, *, enforce_feasibility: bool = False, split_apprentis: bool = False, max_choices: int | None = None):
+def generate_all(profile: ProfileMix, campaign: CampaignMix, *, enforce_feasibility: bool = False, split_apprentis: bool = False, max_choices: int | None = None, **kwargs):
+    """Wrapper helper: generate students and campaign DataFrame.
+
+    Accepts extra kwargs for backward compatibility (ignored).
+    """
     students = generate_students(profile)
     camp = generate_campaign(
         students,
