@@ -56,8 +56,6 @@ Feasibility     PriorityChain        Report
 - `Feasibility` : 5 méthodes par-paire renvoyant `None` ou une raison
   textuelle. `check(s, o)` accumule les raisons ; utilisé aussi pour
   l'explicabilité dans les rapports.
-- `OccurrenceConstraints` : émet les groupes d'occurrences
-  mutuellement exclusives (même instant, même UE).
 - `StudentConstraints` : dérive la table des paires (élève, occ)
   interdites, alimentée par `Feasibility`.
 
@@ -107,15 +105,6 @@ class MonSolveur(Solver):
     NAME = "custom"
     def solve(self, campaign, pre_assignment=None) -> Assignment:
         ...
-```
-
-Ajouter une contrainte inter-occurrences :
-```python
-class OccurrenceConstraints:
-    def ma_regle(self, occurrences) -> list[list[str]]:
-        ...
-    def build(self, occurrences):
-        return dedup([self.same_instant(...), self.same_ue(...), self.ma_regle(...)])
 ```
 
 Ajouter une nouvelle règle de faisabilité :

@@ -2,7 +2,6 @@
 from __future__ import annotations
 from collections import Counter
 import pandas as pd
-from pathlib import Path
 from ..data.model import Campaign, Assignment
 from ..rules import Feasibility
 from ..solvers.base import rank
@@ -12,6 +11,7 @@ _LABELS = [("créneau non fixé", "sans créneau fixé"),
            ("occupé par filière", "conflit(s) avec créneau de filière"),
            ("entreprise", "tombe(nt) sur jour d'entreprise"),
            ("français, élève anglophone", "en français (élève anglophone)")]
+
 
 def _CAUSE_LABEL(msg: str) -> str:
     return next((lbl for key, lbl in _LABELS if key in msg), "autre raison")
@@ -26,54 +26,21 @@ class Report:
 
     def not_assigned(self) -> pd.DataFrame:
         """Liste des paires (élève, demande) non affectées, avec cause."""
-        # load default ecue mapping Idoccur -> Bloc when available
-        try:
-            p = Path(__file__).resolve().parent.parent / \
-                "data" / "default_ecue.csv"
-            df_ecue = pd.read_csv(p, sep=";")[["Idoccur", "Bloc"]]
-            id2bloc = {str(r["Idoccur"]): str(r["Bloc"]).strip()
-                       for _, r in df_ecue.iterrows()}
-        except Exception:
-            id2bloc = {}
-
         rows = []
         for v in self.c.voeux:
             if self.a.get((v.id_student, v.id_demande)):
                 continue
             s = self.c.students[v.id_student]
-            # student info: Statut|Langue|Filieres (langue as FR/EN)
-            student_info = f"{s.regime}|{'FR' if s.francophone else 'EN'}|{'+'.join(s.filieres)}"
-
-            # attempt to find bloc name from ranked occurrences
-            bloc_name = ""
-            for oid in v.ranked_occurrences:
-                bloc = id2bloc.get(str(oid))
-                if bloc:
-                    bloc_name = bloc
-                    break
-                occ = self.c.occurrences.get(oid)
-                if occ and getattr(occ, "code_ue", None):
-                    bloc_name = occ.code_ue
-                    break
-
-            demande_label = f"{v.id_demande} | {bloc_name}" if bloc_name else f"{v.id_demande}"
-
-            # detailed voeux: list of 'id | libellé'
-            voeux_list = []
-            for oid in v.ranked_occurrences:
-                o = self.c.occurrences.get(oid)
-                lab = o.label if o else ""
-                voeux_list.append(f"{oid} | {lab}")
-
+            bloc = self.c.bloc_of(v)
             rows.append({
                 "id_student": v.id_student,
-                "student_info": student_info,
+                "student_info": s.info,
                 "id_demande": v.id_demande,
-                "demande_label": demande_label,
+                "demande_label": f"{v.id_demande} | {bloc}" if bloc else v.id_demande,
                 "regime": s.regime,
                 "filieres": "+".join(s.filieres),
                 "n_voeux": len(v.ranked_occurrences),
-                "voeux_list": " ; ".join(voeux_list),
+                "voeux_list": self.c.voeux_labels(v),
                 "cause": self._diagnose(s, v),
             })
         return pd.DataFrame(rows)

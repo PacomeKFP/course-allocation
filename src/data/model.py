@@ -17,6 +17,11 @@ class Student:
     francophone: bool
     filieres: list[str]        # codes bruts Synapse (DSAI, MACS, ...)
 
+    @property
+    def info(self) -> str:
+        """Résumé compact : régime|langue|filières — utilisé dans les rapports."""
+        return f"{self.regime}|{'FR' if self.francophone else 'EN'}|{'+'.join(self.filieres)}"
+
 
 @dataclass
 class Occurrence:
@@ -31,6 +36,7 @@ class Occurrence:
     cap_max: int
     cap_min: int = 0
     already_enrolled: int = 0
+    bloc: str = ""             # Bloc pédagogique (~demande) — pour le rapport
 
     @property
     def cap_available(self) -> int:
@@ -53,6 +59,23 @@ class Campaign:
 
     def demandes(self) -> list[str]:
         return sorted({v.id_demande for v in self.voeux})
+
+    def voeux_of_student(self, id_student: str) -> list["Voeu"]:
+        return [v for v in self.voeux if v.id_student == id_student]
+
+    def bloc_of(self, voeu: "Voeu") -> str:
+        """Bloc (ou code UE à défaut) de la première occurrence connue du vœu."""
+        for oid in voeu.ranked_occurrences:
+            o = self.occurrences.get(oid)
+            if o and (o.bloc or o.code_ue):
+                return o.bloc or o.code_ue
+        return ""
+
+    def voeux_labels(self, voeu: "Voeu") -> str:
+        """Vœux formatés « id | libellé », joints par « ; » — pour rapports."""
+        return " ; ".join(
+            f"{oid} | {o.label}" if (o := self.occurrences.get(oid)) else oid
+            for oid in voeu.ranked_occurrences)
 
     def voeu_of(self, id_student: str, id_demande: str) -> Voeu | None:
         return next((v for v in self.voeux

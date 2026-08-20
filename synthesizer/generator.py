@@ -1,6 +1,5 @@
 """Génération Synapse fictive. Ne force PAS la faisabilité pour éprouver le solveur."""
 from __future__ import annotations
-from src.data.model import Student as StudentModel
 import random
 import string
 import sys
@@ -9,6 +8,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 import pandas as pd
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from src.data.model import Student as StudentModel
 from src.data import load_ecue
 from src.data.constants import FILIERE_TO_GROUPE
 

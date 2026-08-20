@@ -13,11 +13,7 @@ FILIERE_TO_GROUPE: dict[str, str] = {
     "ACCQ": "C", "DSAI": "C", "RIO": "C", "SPAI": "C",
 }
 
-# Filières sans mapping (aucune contrainte horaire imposée par la filière).
-FILIERES_SANS_CRENEAU: set[str] = {"TSIA", "SD", "ENTP", "RECH"}
-
 SLOTS = ["Lu-am", "Lu-pm", "Ma-am", "Ma-pm", "Me-am", "Me-pm", "Ve-am", "Ve-pm"]
-DAYS = ["Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi"]
 
 # Créneaux occupés par chaque groupe à chaque période (§6.2 du cahier).
 SLOTS_BY_GROUP: dict[str, dict[int, list[str]]] = {
@@ -49,10 +45,6 @@ ENGLISH_MATCH_BONUS = 2         # rabais anglophone → cours EN
 BIG_M = 10_000                  # pénalité prohibitive pour slack
 
 
-def semester_of(period: int) -> int:
-    return 1 if period in (1, 2) else 2
-
-
 def company_days(group: str, period: int) -> set[str]:
     """Jours d'entreprise d'un apprenti (les 2 jours hors filière, hors jeudi)."""
-    return  COMPANY_DAYS_BY_GROUP[group][period]
+    return set(COMPANY_DAYS_BY_GROUP.get(group, {}).get(period, ()))

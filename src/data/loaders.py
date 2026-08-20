@@ -50,6 +50,7 @@ def load_ecue(path: str | Path | None = None) -> dict[str, Occurrence]:
             fisea=str(r["FISEA"]).strip().upper() == "O",
             cap_max=int(r["Effectifmax"]), cap_min=int(r["Effectifmin"]),
             already_enrolled=int(r["Nbinscrits"]),
+            bloc=str(r["Bloc"]).strip() if pd.notna(r.get("Bloc")) else "",
         )
         out[o.id_occ] = o
     return out
@@ -59,7 +60,9 @@ def load_campaign(path: str | Path) -> Tuple[list[Voeu], str]:
     """Charge un ``structure-export`` Synapse ; ignore les lignes vides (élève
     non concerné par la demande)."""
     df = pd.read_csv(path, sep=";")
-    choice_cols = [c for c in df.columns if c.startswith("IDOccur Choix ")]
+    # Tri numérique explicite : l'ordre des colonnes du fichier n'est pas garanti.
+    choice_cols = sorted((c for c in df.columns if c.startswith("IDOccur Choix ")),
+                         key=lambda c: int(c.rsplit(" ", 1)[1]))
     voeux: list[Voeu] = []
     campaign_id = str(df["IDCampagne"].iloc[0]) if not df.empty else ""
     for _, r in df.iterrows():
