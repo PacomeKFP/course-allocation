@@ -1,6 +1,8 @@
 """Mini-app Streamlit pour analyser les vœux non assignables."""
 from __future__ import annotations
-from helpers import load_campaign_paths, unassignable_by_feasibility, reconstruct_timetable_for
+from analysis_app.helpers import load_campaign_paths, unassignable_by_feasibility, reconstruct_timetable_for
+from src.data.model import Campaign
+from collections import defaultdict
 from pathlib import Path
 import sys
 import tempfile
@@ -9,6 +11,7 @@ import pandas as pd
 
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
+
 
 
 def main():

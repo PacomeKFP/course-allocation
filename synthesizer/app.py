@@ -30,11 +30,9 @@ with st.sidebar:
     w_b = st.slider("Groupe B", 0, 5, 1)
     w_c = st.slider("Groupe C", 0, 5, 1)
     st.markdown("### Génération des vœux")
-    n_voeux_min = st.slider("Minimum de vœux par demande", 1, 8, 2)
-    n_voeux_max = st.slider("Maximum de vœux par demande", n_voeux_min, 14, 8)
-    pct_vides = st.slider("Part de demandes non exprimées (%)", 0, 30, 2,
-                          help="Simule les élèves non concernés par certaines demandes") / 100
     seed = st.number_input("Graine aléatoire", value=42, min_value=0)
+    enforce = st.checkbox("Forcer la faisabilité", value=False,
+                          help="Ne garder que les occurrences accessibles selon les règles de faisabilité")
     generer = st.button("Générer la campagne", type="primary", use_container_width=True)
 
 if generer or "gen" not in st.session_state:
@@ -43,10 +41,10 @@ if generer or "gen" not in st.session_state:
                              pct_anglophones=pct_eng, pct_auditeurs_pei=pct_pei,
                              weights_group={"A": w_a, "B": w_b, "C": w_c},
                              seed=int(seed))
-        campaign = CampaignMix(n_voeux_min=n_voeux_min, n_voeux_max=n_voeux_max,
-                                pct_demandes_vides=pct_vides, seed=int(seed))
+        campaign = CampaignMix(seed=int(seed))
         with st.spinner("Génération en cours…"):
-            st.session_state.gen = generate_all(profile, campaign)
+            st.session_state.gen = generate_all(
+                profile, campaign, enforce_feasibility=bool(enforce))
     else:
         st.info("Ajustez les paramètres à gauche puis cliquez sur "
                 "**Générer la campagne**.")
