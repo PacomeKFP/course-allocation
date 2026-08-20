@@ -1,10 +1,11 @@
 """Interface principale — affectation des cours électifs 2A Télécom Paris."""
 from __future__ import annotations
+from src.solvers.base import empty_assignment
 import sys, tempfile, time
 from dataclasses import dataclass
 from pathlib import Path
 
-from src.solvers.base import empty_assignment
+# Ensure repository root is on sys.path so `src` imports work in Streamlit
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import streamlit as st

@@ -24,11 +24,14 @@ def cfg(**kwargs):
 
 NOT_ASSIGNED = {
     "id_student": cfg(label="Élève", help="Identifiant Synapse de l'étudiant"),
+    "student_info": cfg(label="Infos élève", help="Statut | Langue | Filières"),
     "id_demande": cfg(label="Demande", help="Identifiant Synapse de la demande (~bloc)"),
+    "demande_label": cfg(label="Demande (bloc)", help="ID demande | nom du bloc"),
     "regime": cfg(label="Régime"),
     "filieres": cfg(label="Filière(s)"),
     "n_voeux": st.column_config.NumberColumn(
         label="Nb vœux", help="Nombre d'occurrences classées par l'élève pour cette demande"),
+    "voeux_list": cfg(label="Vœux (id | libellé)", help="Liste des vœux classés (id | libellé)"),
     "cause": cfg(label="Cause probable",
                  help="Raison diagnostique de la non-affectation"),
 }
