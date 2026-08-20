@@ -1,6 +1,5 @@
 """Interface principale — affectation des cours électifs 2A Télécom Paris."""
 from __future__ import annotations
-from src.solvers.base import empty_assignment
 import sys, tempfile, time
 from dataclasses import dataclass
 from pathlib import Path
@@ -8,6 +7,7 @@ from pathlib import Path
 # Ensure repository root is on sys.path so `src` imports work in Streamlit
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from src.solvers.base import empty_assignment
 import streamlit as st
 from src.data import build_campaign
 from src.solvers import PriorityChain, MipSolver
